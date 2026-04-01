@@ -1,0 +1,178 @@
+---
+title: "Alert triggers"
+description: "Create reusable notification channels and attach them to monitor alert configs."
+---
+
+A **trigger** is a saved notification channel — it stores the destination URL (or email recipients), the message template, and any authentication headers. Once created, you attach a trigger to one or more alert configs.
+
+This means you can point a single "Slack #incidents" trigger at dozens of monitors without re-entering the webhook URL each time.
+
+## Create a trigger
+
+<Steps>
+  <Step title="Open the triggers list">
+    In the Kener admin dashboard, go to **Triggers**. Click **New Trigger**.
+  </Step>
+
+  <Step title="Choose a trigger type">
+    Select one of the four channel types:
+
+    | Type | Delivers to |
+    |---|---|
+    | `webhook` | Any HTTP endpoint via POST |
+    | `slack` | Slack incoming webhook URL |
+    | `discord` | Discord channel webhook URL |
+    | `email` | One or more email addresses via SMTP or Resend |
+  </Step>
+
+  <Step title="Fill in channel details">
+    - **Name** (required) — a label used to identify this trigger in alert configs
+    - **Description** (optional) — free-text note for your team
+    - **Status** — toggle between `ACTIVE` and `INACTIVE` to enable/disable delivery without deleting the trigger
+
+    For **webhook**, **slack**, and **discord**: enter the destination URL.
+
+    For **email**: enter comma-separated recipient addresses in **To**, and a sender in the format `Name <email@example.com>` in **From**.
+  </Step>
+
+  <Step title="Customise the template (optional)">
+    Every trigger ships with a default template. You can override the message body with your own Mustache template. See [variable reference](/notifications/overview#variable-reference) for the full list of available variables.
+
+    For **webhook**: you can also add custom HTTP headers (key/value pairs). Default headers sent by Kener are `user-agent`, `accept: application/json`, and `content-type: application/json`. Custom headers override defaults if the key matches.
+  </Step>
+
+  <Step title="Save and test">
+    Click **Create Trigger**. Once saved, use the **Test Trigger** button to send a sample `TRIGGERED` notification to verify delivery.
+
+    <Note>
+      The Test Trigger button is only available after the trigger has been saved.
+    </Note>
+  </Step>
+</Steps>
+
+## Trigger meta structure
+
+Internally, each trigger stores its configuration in a `trigger_meta` JSON field. The shape depends on the type:
+
+<CodeGroup>
+
+```json email trigger_meta
+{
+  "to": "alice@example.com, bob@example.com",
+  "from": "Kener Alerts <alerts@example.com>",
+  "email_subject": "{{alert_name}}",
+  "email_body": "<html>...</html>"
+}
+```
+
+```json webhook trigger_meta
+{
+  "url": "https://hooks.example.com/alert",
+  "headers": [
+    { "key": "Authorization", "value": "Bearer {{ENV_SECRET_TOKEN}}" }
+  ],
+  "webhook_body": "{ \"alert_status\": \"{{alert_status}}\" }"
+}
+```
+
+```json slack trigger_meta
+{
+  "url": "https://hooks.slack.com/services/T.../B.../xxx",
+  "slack_body": "{ \"blocks\": [...] }"
+}
+```
+
+```json discord trigger_meta
+{
+  "url": "https://discord.com/api/webhooks/123/xxx",
+  "discord_body": "{ \"embeds\": [...] }"
+}
+```
+
+</CodeGroup>
+
+## Referencing environment secrets
+
+Trigger URLs and bodies support a `{{ENV_VARIABLE_NAME}}` syntax that resolves environment variables at send time. This keeps secrets out of the database:
+
+```
+https://hooks.example.com/alert?token={{ENV_WEBHOOK_SECRET}}
+```
+
+Kener scans the URL, headers, and body for `{{ENV_...}}` patterns and substitutes the value from `process.env` before sending.
+
+## Alert configs
+
+An **alert config** defines *when* to notify — the trigger defines *how*. After creating triggers, create an alert config to wire them to a monitor.
+
+### Creating an alert config
+
+<Steps>
+  <Step title="Open the alerts list">
+    Go to **Alerts** in the admin dashboard. Click **Create Alert**.
+  </Step>
+
+  <Step title="Select monitors">
+    Choose one or more monitors this alert applies to. A single alert config can cover multiple monitors.
+  </Step>
+
+  <Step title="Set the alert type and value">
+    | Alert type | Value | Example |
+    |---|---|---|
+    | `STATUS` | `DOWN` or `DEGRADED` | Fire when monitor is DOWN |
+    | `LATENCY` | Milliseconds (positive integer) | Fire when latency > 2000 ms |
+    | `UPTIME` | Percentage 0–100 | Fire when uptime drops below 99% |
+  </Step>
+
+  <Step title="Set thresholds">
+    - **Failure threshold** — how many consecutive failures before the alert fires (minimum 1)
+    - **Success threshold** — how many consecutive successes before the alert resolves (minimum 1)
+
+    <Tip>
+      A failure threshold of 3 prevents noisy alerts from transient failures. A success threshold of 2 prevents premature resolution on a single lucky check.
+    </Tip>
+  </Step>
+
+  <Step title="Set severity and optional settings">
+    - **Severity** — `WARNING` or `CRITICAL`
+    - **Create incident** — set to `YES` to automatically open a Kener incident when this alert fires
+    - **Description** — optional free-text note included in the `alert_message` variable
+  </Step>
+
+  <Step title="Attach triggers">
+    Select one or more saved triggers from the list. Only `ACTIVE` triggers appear. If no triggers exist yet, create them first.
+  </Step>
+
+  <Step title="Save">
+    Click **Create Alert**. The alert config is active immediately. You can toggle it on/off from the alerts list without deleting it.
+  </Step>
+</Steps>
+
+### Alert config fields
+
+| Field | Type | Values | Default |
+|---|---|---|---|
+| `alert_for` | string | `STATUS`, `LATENCY`, `UPTIME` | — |
+| `alert_value` | string | `DOWN`, `DEGRADED`, or number | — |
+| `failure_threshold` | integer ≥ 1 | Any positive integer | — |
+| `success_threshold` | integer ≥ 1 | Any positive integer | — |
+| `severity` | string | `WARNING`, `CRITICAL` | `WARNING` |
+| `create_incident` | string | `YES`, `NO` | `NO` |
+| `is_active` | string | `YES`, `NO` | `YES` |
+| `alert_description` | string | Free text | `null` |
+
+## Alert lifecycle
+
+```
+Monitor check → condition not met  → no action
+Monitor check → condition met (1 of N) → counter increments
+Monitor check → condition met (N of N) → alert TRIGGERED → notifications sent
+Monitor check → condition not met (1 of M) → counter resets
+Monitor check → condition resolved (M of M) → alert RESOLVED → notifications sent
+```
+
+While an alert is in `TRIGGERED` state, Kener does not send duplicate notifications for the same condition. A new notification fires only when the state changes (TRIGGERED → RESOLVED or a new TRIGGERED cycle begins after a prior RESOLVED).
+
+## Deleting a trigger
+
+Deleting a trigger removes it from all alert configs that reference it. You must type the trigger's name in the confirmation dialog to proceed. Consider setting the trigger status to `INACTIVE` instead if you want to pause delivery without breaking existing configs.

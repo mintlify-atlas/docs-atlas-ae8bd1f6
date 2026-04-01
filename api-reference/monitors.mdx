@@ -1,0 +1,608 @@
+---
+title: "Monitors API"
+description: "Create, read, update monitors and manage their monitoring data."
+---
+
+## Monitor object
+
+<ResponseField name="id" type="integer">
+  Unique numeric identifier for the monitor.
+</ResponseField>
+
+<ResponseField name="tag" type="string">
+  URL-friendly identifier. Only lowercase letters, numbers, hyphens, and underscores. Must start and end with a letter or number. Cannot be changed after creation.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Display name for the monitor.
+</ResponseField>
+
+<ResponseField name="description" type="string | null">
+  Optional description text.
+</ResponseField>
+
+<ResponseField name="image" type="string | null">
+  Optional image URL for the monitor.
+</ResponseField>
+
+<ResponseField name="cron" type="string | null">
+  Cron expression that controls how often the monitor runs.
+</ResponseField>
+
+<ResponseField name="default_status" type="string | null">
+  Status reported when no data is available. One of `UP`, `DOWN`, `DEGRADED`.
+</ResponseField>
+
+<ResponseField name="status" type="string | null">
+  Operational status of the monitor. One of `ACTIVE`, `INACTIVE`.
+</ResponseField>
+
+<ResponseField name="category_name" type="string | null">
+  Category the monitor belongs to.
+</ResponseField>
+
+<ResponseField name="monitor_type" type="string">
+  Type of monitor. Examples: `API`, `PING`, `TCP`, `DNS`, `SSL`, `SQL`, `GRPC`, `HEARTBEAT`, `GROUP`.
+</ResponseField>
+
+<ResponseField name="type_data" type="object | null">
+  Type-specific configuration. Shape depends on `monitor_type`.
+</ResponseField>
+
+<ResponseField name="include_degraded_in_downtime" type="string">
+  Whether to count DEGRADED status as downtime. `YES` or `NO`.
+</ResponseField>
+
+<ResponseField name="is_hidden" type="string">
+  Whether the monitor is hidden from the public status page. `YES` or `NO`.
+</ResponseField>
+
+<ResponseField name="monitor_settings_json" type="object | null">
+  Advanced monitor settings.
+  <Expandable title="properties">
+    <ResponseField name="uptime_formula_numerator" type="string">
+      Expression for the uptime numerator. Default: `up + maintenance + degraded`.
+    </ResponseField>
+    <ResponseField name="uptime_formula_denominator" type="string">
+      Expression for the uptime denominator. Default: `up + down + degraded + maintenance`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp of when the monitor was created.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  ISO 8601 timestamp of the last update.
+</ResponseField>
+
+---
+
+## List monitors
+
+<ParamField query="status" type="string">
+  Filter by operational status: `ACTIVE` or `INACTIVE`.
+</ParamField>
+
+<ParamField query="category_name" type="string">
+  Filter by category name.
+</ParamField>
+
+<ParamField query="monitor_type" type="string">
+  Filter by monitor type (e.g., `API`, `PING`, `HEARTBEAT`).
+</ParamField>
+
+<ParamField query="is_hidden" type="string">
+  Filter by visibility: `YES` or `NO`.
+</ParamField>
+
+```
+GET /api/v4/monitors
+```
+
+**Response** `200`
+
+```json
+{
+  "monitors": [
+    {
+      "id": 1,
+      "tag": "api-gateway",
+      "name": "API Gateway",
+      "description": "Main API gateway health check",
+      "image": null,
+      "cron": "* * * * *",
+      "default_status": "UP",
+      "status": "ACTIVE",
+      "category_name": "Infrastructure",
+      "monitor_type": "API",
+      "type_data": { "url": "https://api.example.com/health" },
+      "include_degraded_in_downtime": "NO",
+      "is_hidden": "NO",
+      "monitor_settings_json": null,
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "updated_at": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/monitors \
+  -H "Authorization: Bearer kener_..."
+```
+
+```bash curl (with filters)
+curl -X GET "https://your-kener-instance.com/api/v4/monitors?status=ACTIVE&monitor_type=API" \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Get a monitor
+
+```
+GET /api/v4/monitors/{monitor_tag}
+```
+
+**Path parameters**
+
+<ParamField path="monitor_tag" type="string" required>
+  The tag of the monitor to retrieve.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "monitor": {
+    "id": 1,
+    "tag": "api-gateway",
+    "name": "API Gateway",
+    "description": null,
+    "image": null,
+    "cron": "* * * * *",
+    "default_status": "UP",
+    "status": "ACTIVE",
+    "category_name": null,
+    "monitor_type": "API",
+    "type_data": null,
+    "include_degraded_in_downtime": "NO",
+    "is_hidden": "NO",
+    "monitor_settings_json": null,
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/monitors/api-gateway \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Create a monitor
+
+```
+POST /api/v4/monitors
+```
+
+<ParamField body="tag" type="string" required>
+  URL-friendly identifier. Only lowercase letters, numbers, hyphens (`-`), and underscores (`_`). Must start and end with a letter or number. Must be unique.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Display name for the monitor.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Optional description.
+</ParamField>
+
+<ParamField body="image" type="string">
+  Optional image URL.
+</ParamField>
+
+<ParamField body="cron" type="string">
+  Cron expression for the check schedule.
+</ParamField>
+
+<ParamField body="default_status" type="string">
+  Status to report when no data is available. Defaults to `UP`.
+</ParamField>
+
+<ParamField body="status" type="string">
+  Initial operational status. Defaults to `ACTIVE`.
+</ParamField>
+
+<ParamField body="category_name" type="string">
+  Category to assign the monitor to.
+</ParamField>
+
+<ParamField body="monitor_type" type="string">
+  Type of monitor. Defaults to `API`.
+</ParamField>
+
+<ParamField body="type_data" type="object">
+  Type-specific configuration object.
+</ParamField>
+
+<ParamField body="include_degraded_in_downtime" type="string">
+  Whether to count DEGRADED as downtime. `YES` or `NO`. Defaults to `NO`.
+</ParamField>
+
+<ParamField body="is_hidden" type="string">
+  Hide from public status page. `YES` or `NO`. Defaults to `NO`.
+</ParamField>
+
+<ParamField body="monitor_settings_json" type="object">
+  Advanced settings.
+  <Expandable title="properties">
+    <ParamField body="uptime_formula_numerator" type="string">
+      Uptime numerator expression.
+    </ParamField>
+    <ParamField body="uptime_formula_denominator" type="string">
+      Uptime denominator expression.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Response** `201`
+
+```json
+{
+  "monitor": {
+    "id": 2,
+    "tag": "checkout-service",
+    "name": "Checkout Service",
+    "description": null,
+    "image": null,
+    "cron": "* * * * *",
+    "default_status": "UP",
+    "status": "ACTIVE",
+    "category_name": null,
+    "monitor_type": "API",
+    "type_data": null,
+    "include_degraded_in_downtime": "NO",
+    "is_hidden": "NO",
+    "monitor_settings_json": null,
+    "created_at": "2026-01-15T10:00:00.000Z",
+    "updated_at": "2026-01-15T10:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://your-kener-instance.com/api/v4/monitors \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tag": "checkout-service",
+    "name": "Checkout Service",
+    "monitor_type": "API",
+    "cron": "* * * * *"
+  }'
+```
+
+</CodeGroup>
+
+<Note>
+  A monitor tag can only contain lowercase letters (`a-z`), numbers (`0-9`), hyphens (`-`), and underscores (`_`). It must start and end with a letter or number. Single-character tags must be a letter or number.
+</Note>
+
+---
+
+## Update a monitor
+
+Performs a partial update. Only the fields you include in the request body are changed. The `tag` field cannot be changed.
+
+```
+PATCH /api/v4/monitors/{monitor_tag}
+```
+
+**Path parameters**
+
+<ParamField path="monitor_tag" type="string" required>
+  The tag of the monitor to update.
+</ParamField>
+
+<ParamField body="name" type="string">
+  New display name.
+</ParamField>
+
+<ParamField body="description" type="string | null">
+  New description.
+</ParamField>
+
+<ParamField body="image" type="string | null">
+  New image URL.
+</ParamField>
+
+<ParamField body="cron" type="string | null">
+  New cron expression.
+</ParamField>
+
+<ParamField body="default_status" type="string | null">
+  New default status.
+</ParamField>
+
+<ParamField body="status" type="string | null">
+  New operational status (`ACTIVE` or `INACTIVE`).
+</ParamField>
+
+<ParamField body="category_name" type="string | null">
+  New category name.
+</ParamField>
+
+<ParamField body="monitor_type" type="string | null">
+  New monitor type.
+</ParamField>
+
+<ParamField body="type_data" type="object | null">
+  Type-specific configuration. Merged with existing data (not replaced).
+</ParamField>
+
+<ParamField body="include_degraded_in_downtime" type="string">
+  `YES` or `NO`.
+</ParamField>
+
+<ParamField body="is_hidden" type="string">
+  `YES` or `NO`.
+</ParamField>
+
+<ParamField body="monitor_settings_json" type="object | null">
+  Advanced settings. Merged with existing settings (not replaced).
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "monitor": {
+    "id": 1,
+    "tag": "api-gateway",
+    "name": "API Gateway (Updated)",
+    "status": "INACTIVE",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-15T12:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X PATCH https://your-kener-instance.com/api/v4/monitors/api-gateway \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "INACTIVE",
+    "description": "Temporarily disabled for maintenance"
+  }'
+```
+
+</CodeGroup>
+
+---
+
+## Get monitoring data
+
+Returns per-minute data points for a monitor over a time range.
+
+```
+GET /api/v4/monitors/{monitor_tag}/data
+```
+
+**Path parameters**
+
+<ParamField path="monitor_tag" type="string" required>
+  The tag of the monitor.
+</ParamField>
+
+**Query parameters**
+
+<ParamField query="start_ts" type="integer" required>
+  Start of the range as a UTC Unix timestamp in seconds.
+</ParamField>
+
+<ParamField query="end_ts" type="integer" required>
+  End of the range as a UTC Unix timestamp in seconds. Must be greater than `start_ts`.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "data": [
+    {
+      "monitor_tag": "api-gateway",
+      "timestamp": 1737000000,
+      "status": "UP",
+      "latency": 120,
+      "type": "API"
+    }
+  ]
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET "https://your-kener-instance.com/api/v4/monitors/api-gateway/data?start_ts=1737000000&end_ts=1737003600" \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Update monitoring data (range)
+
+Overwrite monitoring data for a range of minutes. Sets `type` to `MANUAL` for all updated points.
+
+```
+PATCH /api/v4/monitors/{monitor_tag}/data
+```
+
+**Path parameters**
+
+<ParamField path="monitor_tag" type="string" required>
+  The tag of the monitor.
+</ParamField>
+
+<ParamField body="start_ts" type="integer" required>
+  Start of the range (UTC seconds). Must be less than `end_ts`.
+</ParamField>
+
+<ParamField body="end_ts" type="integer" required>
+  End of the range (UTC seconds).
+</ParamField>
+
+<ParamField body="status" type="string" required>
+  Status to apply. One of `UP`, `DOWN`, `DEGRADED`.
+</ParamField>
+
+<ParamField body="latency" type="number" required>
+  Latency in milliseconds. Must be non-negative.
+</ParamField>
+
+<ParamField body="deviation" type="number">
+  Latency deviation in milliseconds. Defaults to `0`. Must be non-negative.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "message": "Monitoring data updated successfully",
+  "updated_count": 60
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X PATCH https://your-kener-instance.com/api/v4/monitors/api-gateway/data \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "start_ts": 1737000000,
+    "end_ts": 1737003600,
+    "status": "DOWN",
+    "latency": 0
+  }'
+```
+
+</CodeGroup>
+
+---
+
+## Get a monitoring data point
+
+Returns the data point for a monitor at a specific minute-aligned timestamp.
+
+```
+GET /api/v4/monitors/{monitor_tag}/data/{timestamp}
+```
+
+**Path parameters**
+
+<ParamField path="monitor_tag" type="string" required>
+  The tag of the monitor.
+</ParamField>
+
+<ParamField path="timestamp" type="integer" required>
+  UTC Unix timestamp in seconds. Automatically truncated to the start of the minute.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "data": {
+    "monitor_tag": "api-gateway",
+    "timestamp": 1737000000,
+    "status": "UP",
+    "latency": 95,
+    "type": "API"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/monitors/api-gateway/data/1737000000 \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Update a monitoring data point
+
+Upserts the data point for a monitor at a specific timestamp. Sets `type` to `MANUAL`.
+
+```
+PATCH /api/v4/monitors/{monitor_tag}/data/{timestamp}
+```
+
+**Path parameters**
+
+<ParamField path="monitor_tag" type="string" required>
+  The tag of the monitor.
+</ParamField>
+
+<ParamField path="timestamp" type="integer" required>
+  UTC Unix timestamp in seconds.
+</ParamField>
+
+<ParamField body="status" type="string">
+  New status. One of `UP`, `DOWN`, `DEGRADED`. If omitted, retains the existing value.
+</ParamField>
+
+<ParamField body="latency" type="number">
+  New latency in milliseconds. Must be non-negative. If omitted, retains the existing value.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "data": {
+    "monitor_tag": "api-gateway",
+    "timestamp": 1737000000,
+    "status": "DOWN",
+    "latency": 0,
+    "type": "MANUAL"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X PATCH https://your-kener-instance.com/api/v4/monitors/api-gateway/data/1737000000 \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "DOWN",
+    "latency": 0
+  }'
+```
+
+</CodeGroup>

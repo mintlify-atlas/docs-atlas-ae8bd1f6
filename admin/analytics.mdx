@@ -1,0 +1,111 @@
+---
+title: "Analytics Integration"
+description: "Connect analytics providers to track page views on your public Kener status pages."
+---
+
+Kener can forward page-view events from your public status pages to one or more third-party analytics providers. This lets you understand how many visitors are checking your status page without building custom tracking.
+
+<Note>
+  Analytics tracking applies to **public status pages only**. The admin dashboard does not send analytics events.
+</Note>
+
+## Supported providers
+
+<CardGroup cols={2}>
+  <Card title="Google Analytics" icon="chart-line">
+    Uses Google Tag Manager. Requires a Measurement ID (format: `G-XXXXXXXXXX`). Optionally accepts a custom Transport URL and Script Host for self-hosted or proxied setups.
+  </Card>
+  <Card title="Plausible" icon="chart-bar">
+    Privacy-focused analytics. Requires a Domain, API endpoint, and script source URL. Defaults to the Plausible cloud endpoints.
+  </Card>
+  <Card title="MixPanel" icon="chart-mixed">
+    Requires a Project Token. Optionally accepts a custom API Host for EU data residency or self-hosted deployments.
+  </Card>
+  <Card title="Amplitude" icon="wave-square">
+    Requires an Amplitude API Key. Optionally accepts a custom Server URL.
+  </Card>
+  <Card title="Microsoft Clarity" icon="microsoft">
+    Session recording and heatmap analytics. Requires only a Project ID.
+  </Card>
+  <Card title="Umami" icon="gauge">
+    Open-source, privacy-focused analytics. Requires a Website ID and the script URL (defaults to `https://cloud.umami.is/script.js`).
+  </Card>
+</CardGroup>
+
+There is also built-in support for **PostHog**, which requires an API Key and an API Host (defaults to `https://us.i.posthog.com`).
+
+## Adding an analytics provider
+
+<Steps>
+  <Step title="Open the Analytics Providers page">
+    Navigate to **Manage → Analytics Providers**. This page requires the `settings.read` permission to view and `settings.write` to save changes.
+  </Step>
+  <Step title="Select a provider">
+    The left panel lists all supported providers. Click a provider name to open its configuration form on the right. An animated green dot appears next to providers that are currently enabled and active.
+  </Step>
+  <Step title="Fill in the required fields">
+    Each provider has its own required and optional fields. Required fields must be filled before saving. See the [provider field reference](#provider-field-reference) below for details.
+  </Step>
+  <Step title="Set the status">
+    Use the **Status** dropdown to set the provider to **Enable** or **Disable**. A provider with all fields filled but status set to Disable will not load on the status page.
+  </Step>
+  <Step title="Save">
+    Click **Save Changes for [Provider Name]**. Settings are saved per-provider, so you can configure multiple providers independently.
+  </Step>
+</Steps>
+
+## Adding multiple providers
+
+Each provider is configured and saved independently. You can enable all seven providers simultaneously — just configure each one and save. There is no limit on the number of active analytics providers.
+
+## Provider field reference
+
+### Google Analytics
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Measurement ID | Yes | Your GA4 Measurement ID, e.g. `G-S05E5E5E5E5` |
+| Transport URL | No | Custom transport URL, defaults to `https://www.google-analytics.com` |
+| Script Host | No | Custom script host, defaults to `https://www.googletagmanager.com` |
+
+### Plausible
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Domain | Yes | The domain registered in Plausible, e.g. `kener.ing` |
+| API | Yes | Plausible API endpoint, defaults to `https://plausible.io/api/event` |
+| Script Source | Yes | Script URL, defaults to `https://plausible.io/js/script.pageview-props.tagged-events.js` |
+
+### MixPanel
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Project Token | Yes | Your MixPanel project token |
+| API Host | No | Custom API host for self-hosted or EU region deployments |
+
+### Amplitude
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Amplitude API Key | Yes | API key for your Amplitude project |
+| Server URL | No | Custom server URL, defaults to `https://api2.amplitude.com/2/httpapi` |
+
+### Microsoft Clarity
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Project ID | Yes | Project ID for your Microsoft Clarity project |
+
+### Umami
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Website ID | Yes | Website ID from your Umami dashboard |
+| Script URL | Yes | Umami script URL, defaults to `https://cloud.umami.is/script.js` |
+
+### PostHog
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| API Key | Yes | Your PostHog project API key, e.g. `phc_xxxxxxxxxxxxxxxxxxxx` |
+| API Host | Yes | PostHog instance host, defaults to `https://us.i.posthog.com` |

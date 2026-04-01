@@ -1,0 +1,233 @@
+---
+title: "Users & Roles"
+description: "Manage user accounts, invite new members, and control access with role-based permissions."
+---
+
+Kener uses role-based access control (RBAC) to manage who can do what inside the dashboard. Every user is assigned one or more roles, and every role carries a set of granular permissions.
+
+## Owner account
+
+The first user created during initial setup is automatically designated as the **owner**. The owner account has two permanent constraints enforced at the database and controller level:
+
+- The owner is always assigned the `admin` role and cannot be removed from it.
+- The owner account cannot be deactivated.
+
+These restrictions prevent an instance from being left in an unmanageable state.
+
+## Built-in roles
+
+Kener ships with three **readonly** built-in roles. Their names, IDs, and permission sets are fixed and cannot be edited or deleted.
+
+| Role ID | Display name | Description |
+|---------|-------------|-------------|
+| `admin` | Admin | Full access to all features |
+| `editor` | Editor | Create and update content; no user or role management |
+| `member` | Member | Read-only access across the dashboard |
+
+<Note>
+  Built-in roles cannot be renamed, deactivated, or deleted. You can, however, create custom roles and clone permissions from a built-in role as a starting point.
+</Note>
+
+## Custom roles
+
+You can create custom roles with any combination of permissions.
+
+**Role ID rules:** lowercase letters, numbers, underscores, and hyphens only (e.g. `viewer`, `ops_team`). The IDs `admin`, `editor`, and `member` are reserved.
+
+### Creating a role
+
+<Steps>
+  <Step title="Open the Roles page">
+    Navigate to **Manage → Roles** in the sidebar.
+  </Step>
+  <Step title="Click Create Role">
+    Click the **Create Role** button in the top-right corner.
+  </Step>
+  <Step title="Fill in the details">
+    Enter a **Role ID** (e.g. `viewer`) and a **Role Name** (e.g. `Viewer`). Choose whether to pick permissions after creation or clone them from an existing active role.
+  </Step>
+  <Step title="Save">
+    Click **Create**. If you chose to clone permissions, they are copied immediately. You are then taken to the permissions sheet to fine-tune the assignment.
+  </Step>
+</Steps>
+
+### Editing a role
+
+Click the pencil icon next to any custom role to change its name or toggle its status between `ACTIVE` and `INACTIVE`. Inactive roles cannot be assigned to users.
+
+### Deleting a role
+
+Click the trash icon next to a custom role. You will be asked what to do with users currently assigned to that role:
+
+- **Remove assignments** — the users lose this role but keep any other roles they have.
+- **Migrate to another role** — all users in the deleted role are moved to the target role you select. The target role must be active.
+
+<Warning>
+  Readonly built-in roles (`admin`, `editor`, `member`) cannot be deleted.
+</Warning>
+
+## Permissions reference
+
+Each permission controls a specific set of API actions. Use the accordions below to see what each permission grants.
+
+<Accordion title="Monitors">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `monitors.read` | View monitors and monitoring data |
+  | `monitors.write` | Create, update, delete, and clone monitors |
+</Accordion>
+
+<Accordion title="Incidents">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `incidents.read` | View incidents and comments |
+  | `incidents.write` | Create, update, and delete incidents and comments |
+</Accordion>
+
+<Accordion title="Maintenances">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `maintenances.read` | View maintenances and events |
+  | `maintenances.write` | Create, update, and delete maintenances and events |
+</Accordion>
+
+<Accordion title="Pages">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `pages.read` | View pages |
+  | `pages.write` | Create, update, and delete pages |
+</Accordion>
+
+<Accordion title="Triggers">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `triggers.read` | View triggers |
+  | `triggers.write` | Create, update, delete, and test triggers |
+</Accordion>
+
+<Accordion title="Alerts">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `alerts.read` | View alert configurations and alert history |
+  | `alerts.write` | Create, update, and delete alert configurations |
+</Accordion>
+
+<Accordion title="API Keys">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `api_keys.read` | View API keys |
+  | `api_keys.write` | Create and update API keys |
+  | `api_keys.delete` | Delete API keys |
+</Accordion>
+
+<Accordion title="Users">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `users.read` | View users |
+  | `users.write` | Manage users, invitations, and verification |
+</Accordion>
+
+<Accordion title="Roles">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `roles.read` | View roles, permissions, and user assignments |
+  | `roles.write` | Create, update, and delete roles |
+  | `roles.assign_permissions` | Add and remove permissions from roles |
+  | `roles.assign_users` | Add and remove users to and from roles |
+</Accordion>
+
+<Accordion title="Settings">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `settings.read` | View site settings and subscriptions config |
+  | `settings.write` | Update site settings and subscriptions config |
+</Accordion>
+
+<Accordion title="Subscribers">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `subscribers.read` | View subscribers |
+  | `subscribers.write` | Manage subscribers and subscriptions |
+</Accordion>
+
+<Accordion title="Email Templates">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `email_templates.read` | View email templates |
+  | `email_templates.write` | Update email templates |
+</Accordion>
+
+<Accordion title="Images">
+  | Permission ID | What it grants |
+  |--------------|---------------|
+  | `images.write` | Upload and delete images |
+</Accordion>
+
+## Assigning permissions to a role
+
+<Steps>
+  <Step title="Open the Roles page">
+    Navigate to **Manage → Roles**.
+  </Step>
+  <Step title="Open the permissions sheet">
+    Click the **Permissions** button for the role you want to configure.
+  </Step>
+  <Step title="Toggle permissions">
+    Permissions are grouped by domain. Click any permission row to toggle it on or off. The badge on each group header shows how many permissions in that group are currently granted.
+  </Step>
+  <Step title="Save">
+    Click **Save Permissions**.
+  </Step>
+</Steps>
+
+<Note>
+  Readonly built-in roles display their permissions but the checkboxes are disabled. You need the `roles.assign_permissions` permission to modify permissions on any custom role.
+</Note>
+
+## Inviting users
+
+<Note>
+  User invitations require a configured email service. If email is not set up, the **Add User** button is disabled and a warning is shown. See the email setup guide for details.
+</Note>
+
+<Steps>
+  <Step title="Open the Users page">
+    Navigate to **Manage → Users**.
+  </Step>
+  <Step title="Click Add User">
+    Click the **Add User** button. This requires the `users.write` permission.
+  </Step>
+  <Step title="Enter user details">
+    Provide the invitee's **Name** (2–100 characters) and **Email** address. Select at least one active role to assign.
+  </Step>
+  <Step title="Send the invitation">
+    Click **Add User**. Kener creates the account (inactive, no password set) and sends an invitation email containing a link valid for **7 days**. The recipient clicks the link to set their password and activate the account.
+  </Step>
+</Steps>
+
+If an invited user never sets their password, you can resend the invitation from their settings panel (click the gear icon next to the user in the table).
+
+## Managing existing users
+
+Users are listed in the **Manage → Users** table with columns for Name, Email, Verified status, Role(s), and Active status. You can filter between **Active** and **Inactive** users using the toggle at the top of the page.
+
+Click the gear icon on any user (other than yourself) to open the settings panel. You need the `users.write` permission to see this button.
+
+<CardGroup cols={2}>
+  <Card title="Update roles" icon="shield">
+    Check or uncheck roles in the panel and click **Update Roles**. The owner must always retain the `admin` role.
+  </Card>
+  <Card title="Deactivate / activate" icon="power-off">
+    Deactivating a user prevents login and invalidates their current session immediately. The owner account cannot be deactivated.
+  </Card>
+  <Card title="Resend invitation" icon="envelope">
+    If a user has not yet set their password, the panel shows a **Resend Invitation** button that sends a fresh 7-day link.
+  </Card>
+  <Card title="Email verification" icon="circle-check">
+    Users can verify their own email from the table. Admins can also trigger a verification email from the user's settings panel.
+  </Card>
+</CardGroup>
+
+## Assigning users to roles from the Roles page
+
+You can also manage the membership of a specific role from **Manage → Roles** by clicking the **Users** button on the role row. The panel shows all current members and lets you add or remove users, provided you have the `roles.assign_users` permission.

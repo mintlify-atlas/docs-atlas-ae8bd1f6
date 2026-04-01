@@ -1,0 +1,122 @@
+---
+title: 'API monitor'
+description: 'Monitor HTTP/HTTPS endpoints with custom methods, headers, request body, and JavaScript eval logic.'
+---
+
+API monitors send HTTP requests and evaluate the response with a JavaScript function. Use them for any HTTP or HTTPS endpoint.
+
+## Configuration fields
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `url` | `string` | — | Required |
+| `method` | `GET \| POST \| PUT \| PATCH \| DELETE \| HEAD \| OPTIONS` | `GET` | |
+| `headers` | `{ key: string; value: string }[]` | `[]` | Optional custom headers |
+| `body` | `string` | `""` | Sent for non-GET/HEAD methods |
+| `timeout` | `number` | `10000` | Request timeout in milliseconds |
+| `allowSelfSignedCert` | `boolean` | `false` | Disables TLS certificate verification |
+| `eval` | `string` (JS function) | built-in default | See eval contract below |
+
+## Default eval behavior
+
+When no custom `eval` is set, the monitor returns **UP** when:
+
+- the HTTP status code is `429`, or
+- the status code is in the `2xx` or `3xx` range
+
+All other status codes return **DOWN**.
+
+The built-in eval function:
+
+```javascript
+async function (statusCode, responseTime, responseRaw, modules) {
+    let statusCodeShort = Math.floor(statusCode / 100);
+    if (statusCode == 429 || (statusCodeShort >= 2 && statusCodeShort <= 3)) {
+        return {
+            status: 'UP',
+            latency: responseTime,
+        }
+    }
+    return {
+        status: 'DOWN',
+        latency: responseTime,
+    }
+}
+```
+
+## Custom eval contract
+
+Your function receives four arguments:
+
+| Argument | Type | Description |
+|---|---|---|
+| `statusCode` | `number` | HTTP response status code |
+| `responseTime` | `number` | Measured latency in milliseconds |
+| `responseRaw` | `string` | Raw response body as a string |
+| `modules` | `object` | Available libraries — currently includes `cheerio` |
+
+It must return an object with:
+
+```javascript
+{ status: "UP" | "DEGRADED" | "DOWN" | "MAINTENANCE", latency: number }
+```
+
+<Warning>
+If the eval function throws an error or returns an invalid shape, the monitor records **DOWN** for that run.
+</Warning>
+
+## Examples
+
+<CodeGroup>
+
+```json Basic GET check
+{
+    "type": "API",
+    "type_data": {
+        "url": "https://api.example.com/health",
+        "method": "GET",
+        "timeout": 10000
+    }
+}
+```
+
+```json POST with body and headers
+{
+    "type": "API",
+    "type_data": {
+        "url": "https://api.example.com/check",
+        "method": "POST",
+        "headers": [
+            { "key": "Content-Type", "value": "application/json" },
+            { "key": "Authorization", "value": "Bearer $API_TOKEN" }
+        ],
+        "body": "{\"check\": true}",
+        "timeout": 5000
+    }
+}
+```
+
+```json Custom eval — check response body
+{
+    "type": "API",
+    "type_data": {
+        "url": "https://api.example.com/status",
+        "method": "GET",
+        "timeout": 10000,
+        "eval": "async function (statusCode, responseTime, responseRaw, modules) { try { const body = JSON.parse(responseRaw); if (body.status === 'ok') { return { status: 'UP', latency: responseTime }; } return { status: 'DOWN', latency: responseTime }; } catch (e) { return { status: 'DOWN', latency: responseTime }; } }"
+    }
+}
+```
+
+</CodeGroup>
+
+<Note>
+Use `$VARIABLE_NAME` in the URL, headers, or body to reference environment variables stored as secrets. Kener replaces them before sending the request.
+</Note>
+
+## Troubleshooting
+
+- **Always DOWN**: verify the URL is reachable from your Kener host, check method and headers
+- **TLS errors**: enable `allowSelfSignedCert` only for trusted self-signed endpoints
+- **Eval errors**: check that your function always returns a valid `{ status, latency }` object
+- **Timeout**: increase `timeout` or investigate network latency from Kener to the target

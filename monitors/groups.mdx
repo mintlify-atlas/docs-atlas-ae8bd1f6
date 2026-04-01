@@ -1,0 +1,141 @@
+---
+title: 'Monitor groups'
+description: 'Aggregate multiple monitors into a single weighted status to represent a service composed of many components.'
+---
+
+Group monitors aggregate the current status of member monitors into one combined status. Use them to represent a service that is composed of multiple components — for example, grouping an API, a database, and a cache into a single "Payments Service" status.
+
+## Requirements
+
+A group monitor must have:
+
+- at least **2** member monitors
+- member monitors that are **active** and **not themselves group monitors**
+- weights that sum to exactly `1` (tolerance ±`0.01`)
+- `executionDelay` ≥ `1000` ms
+
+## Status scoring model
+
+Member statuses are converted to a numeric score:
+
+| Status | Score |
+|---|---|
+| `UP` | `1` |
+| `DEGRADED` | `0.5` |
+| `DOWN` | `0` |
+| `MAINTENANCE` | `1` (treated as UP) |
+
+The weighted score is:
+
+```
+Σ(member.weight × statusScore)
+```
+
+The result maps back to a group status:
+
+| Score | Group status |
+|---|---|
+| `= 1` | **UP** — all members healthy |
+| `> 0` and `< 1` | **DEGRADED** — partial failure |
+| `= 0` | **DOWN** — all members down |
+
+### Scoring example
+
+5 monitors with equal weight (`0.2` each), 1 is DOWN:
+
+```
+4 × 0.2 × 1  (UP)   =  0.8
+1 × 0.2 × 0  (DOWN) =  0.0
+─────────────────────────────
+Weighted score = 0.8 → DEGRADED
+```
+
+## Configuration fields
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `monitors` | `Array<{ tag: string; weight: number }>` | `[]` | Required, min 2 members; weights must sum to 1 |
+| `executionDelay` | `number` | `1000` | Milliseconds to wait before aggregating; must be ≥ 1000 |
+| `latencyCalculation` | `AVG \| MAX \| MIN` | `AVG` | How to compute group latency from member latencies |
+
+### Latency aggregation modes
+
+| Mode | Result |
+|---|---|
+| `AVG` | Average latency across all members |
+| `MAX` | Latency of the slowest member |
+| `MIN` | Latency of the fastest member |
+
+## Execution delay
+
+The `executionDelay` gives member monitors time to finish their own checks before the group reads their cached status. If member monitors have long-running checks (slow API endpoints, SQL queries with high latency), increase the delay so the group always reads fresh results.
+
+<Tip>
+Set `executionDelay` to slightly longer than the expected worst-case execution time of your member monitors. For example, if one member is an API monitor with a 10-second timeout, set `executionDelay` to at least `12000`.
+</Tip>
+
+## Creating a group in the dashboard
+
+<Steps>
+  <Step title="Create member monitors first">
+    All monitors you want to add to a group must already exist and be **active**. Groups cannot include other groups.
+  </Step>
+  <Step title="Create a new monitor with type GROUP">
+    In the **Monitors** section, click **New monitor** and select **Group**.
+  </Step>
+  <Step title="Add members and set weights">
+    Add each member monitor and assign a weight. Weights must sum to `1`. Equal weights for N monitors = `1/N` each.
+  </Step>
+  <Step title="Set execution delay and latency mode">
+    Leave `executionDelay` at `1000` ms unless member checks take longer to complete. Choose `AVG`, `MAX`, or `MIN` for latency display.
+  </Step>
+  <Step title="Save">
+    The group monitor evaluates on its own cron schedule, reading cached statuses of its members on each run.
+  </Step>
+</Steps>
+
+## Example configuration
+
+<CodeGroup>
+
+```json Equal weights (3 members)
+{
+    "type": "GROUP",
+    "type_data": {
+        "monitors": [
+            { "tag": "api-gateway", "weight": 0.334 },
+            { "tag": "db-primary",  "weight": 0.333 },
+            { "tag": "cache",       "weight": 0.333 }
+        ],
+        "executionDelay": 1000,
+        "latencyCalculation": "AVG"
+    }
+}
+```
+
+```json Weighted — critical service gets more weight
+{
+    "type": "GROUP",
+    "type_data": {
+        "monitors": [
+            { "tag": "payments-api", "weight": 0.6 },
+            { "tag": "payments-db",  "weight": 0.3 },
+            { "tag": "fraud-check",  "weight": 0.1 }
+        ],
+        "executionDelay": 1500,
+        "latencyCalculation": "MAX"
+    }
+}
+```
+
+</CodeGroup>
+
+## When a member is deleted
+
+If a member monitor is deleted from Kener, it is automatically removed from any groups that reference it. Weights are rebalanced equally across remaining members. Groups left with fewer than 2 members are automatically set to **INACTIVE**.
+
+## Troubleshooting
+
+- **Cannot save**: verify weights sum to `1`, there are at least 2 members, and delay is ≥ `1000`
+- **Status seems stale (cron runs)**: increase `executionDelay` to give members more time to finish before the group aggregates
+- **Group too sensitive or too lenient**: adjust weights — higher weight on a critical monitor means its failure pulls the overall score down more

@@ -1,0 +1,191 @@
+---
+title: 'SSL, SQL & gRPC monitors'
+description: 'Monitor TLS certificate expiry, database query health, and gRPC service status.'
+---
+
+These three monitor types cover infrastructure-level health checks: TLS certificate expiry windows, SQL database connectivity, and gRPC Health Checking Protocol.
+
+## SSL monitor
+
+SSL monitors open a TLS connection to your host, read the peer certificate's expiry date, and map the remaining time to a status.
+
+### Configuration
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `host` | `string` | — | Required — hostname for TLS connection |
+| `port` | `string` | `"443"` | Port as a string; defaults to `443` |
+| `degradedRemainingHours` | `number` | `168` | Hours until expiry at which status becomes DEGRADED (must be > `downRemainingHours`) |
+| `downRemainingHours` | `number` | `24` | Hours until expiry at which status becomes DOWN |
+
+<Warning>
+`degradedRemainingHours` must be strictly greater than `downRemainingHours`. Validation fails if they are equal or inverted.
+</Warning>
+
+### Status logic
+
+Let `hours` = hours remaining until certificate expiry:
+
+| Condition | Status |
+|---|---|
+| `hours > degradedRemainingHours` | **UP** |
+| `downRemainingHours < hours ≤ degradedRemainingHours` | **DEGRADED** |
+| `hours ≤ downRemainingHours` | **DOWN** |
+
+Connection errors and certificate retrieval failures also return **DOWN**.
+
+### Example
+
+```json
+{
+    "type": "SSL",
+    "type_data": {
+        "host": "example.com",
+        "port": "443",
+        "degradedRemainingHours": 168,
+        "downRemainingHours": 24
+    }
+}
+```
+
+168 hours = 7 days. With these defaults, the monitor goes **DEGRADED** a week before expiry and **DOWN** one day before.
+
+### Troubleshooting
+
+- **Immediate DOWN**: wrong host or port, or TLS is not available on that endpoint
+- **Validation fails**: ensure `degradedRemainingHours` is strictly greater than `downRemainingHours`
+- **Unexpected expiry date**: verify the certificate served by SNI for that exact hostname
+
+---
+
+## SQL monitor
+
+SQL monitors connect to a database, execute your query, and return **UP** if the query succeeds within the timeout.
+
+### Configuration
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `dbType` | `pg \| mysql2 \| mssql \| oracledb \| sqlite3` | `pg` | Database driver |
+| `connectionString` | `string` | — | Required; supports `$ENV_VAR` substitution |
+| `query` | `string` | `SELECT 1` | SQL to execute |
+| `timeout` | `number` | `5000` | Query + connection timeout in milliseconds |
+
+### Status logic
+
+| Outcome | Status |
+|---|---|
+| Query succeeds within timeout | **UP** |
+| Query exceeds timeout | **DOWN** (`type: TIMEOUT`) |
+| Connection or query error | **DOWN** (`type: ERROR`) |
+
+### Examples
+
+<CodeGroup>
+
+```json PostgreSQL connectivity check
+{
+    "type": "SQL",
+    "type_data": {
+        "dbType": "pg",
+        "connectionString": "postgresql://monitor:$DB_PASSWORD@db.example.com:5432/app",
+        "query": "SELECT 1",
+        "timeout": 5000
+    }
+}
+```
+
+```json MySQL connectivity check
+{
+    "type": "SQL",
+    "type_data": {
+        "dbType": "mysql2",
+        "connectionString": "mysql://monitor:$DB_PASSWORD@db.example.com:3306/app",
+        "query": "SELECT 1",
+        "timeout": 5000
+    }
+}
+```
+
+</CodeGroup>
+
+<Note>
+Use `$VARIABLE_NAME` in the connection string to reference environment secrets. Kener replaces them before connecting.
+</Note>
+
+### Troubleshooting
+
+- **Timeout**: increase `timeout`, check network latency, or optimize the query
+- **Auth / connection errors**: verify driver type, connection string format, and credentials
+- **Permission errors**: grant the monitor database user the minimum read access required
+
+---
+
+## gRPC monitor
+
+gRPC monitors call the standard [gRPC Health Checking Protocol](https://grpc.io/docs/guides/health-checking/) (`grpc.health.v1.Health/Check`) and map the `ServingStatus` response to a monitor status.
+
+### Configuration
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `host` | `string` | — | Required — gRPC server hostname |
+| `port` | `number` | `50051` | Required — gRPC server port |
+| `service` | `string` | `""` | Fully-qualified service name; empty string checks overall server health |
+| `tls` | `boolean` | `false` | Use TLS credentials |
+| `timeout` | `number` | `10000` | Request deadline in milliseconds |
+
+### Status logic
+
+The `ServingStatus` from the health check response maps to:
+
+| `ServingStatus` | Kener status |
+|---|---|
+| `SERVING` | **UP** |
+| `NOT_SERVING` | **DOWN** |
+| `UNKNOWN` | **DEGRADED** |
+| `SERVICE_UNKNOWN` | **DEGRADED** |
+
+Connection errors and deadline exceeded → **DOWN**.
+
+### Example
+
+<CodeGroup>
+
+```json Check overall server health
+{
+    "type": "GRPC",
+    "type_data": {
+        "host": "grpc.example.com",
+        "port": 50051,
+        "tls": true,
+        "timeout": 5000
+    }
+}
+```
+
+```json Check a specific service
+{
+    "type": "GRPC",
+    "type_data": {
+        "host": "grpc.example.com",
+        "port": 50051,
+        "service": "my.package.MyService",
+        "tls": true,
+        "timeout": 5000
+    }
+}
+```
+
+</CodeGroup>
+
+<Note>
+Your gRPC server must implement the standard `grpc.health.v1.Health` service. Kener embeds the health proto definition — no proto file is required on the Kener host.
+</Note>
+
+### Troubleshooting
+
+- **Immediate DOWN**: wrong host or port, service not running, or firewall blocking the connection
+- **DEGRADED**: the server returned `UNKNOWN` or `SERVICE_UNKNOWN` — verify the service name is registered with the health service
+- **Timeout**: increase `timeout` or investigate network latency
+- **TLS errors**: confirm the server has a valid certificate, or set `tls: false` if the server uses plain text

@@ -1,33 +1,87 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: "API Reference"
+description: "REST API for managing monitors, incidents, maintenances, pages, and site configuration in Kener."
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+## Overview
 
-## Welcome
+The Kener API v4 lets you programmatically manage every resource in your status page: monitors, incidents, maintenances, pages, and site settings. All endpoints accept and return JSON.
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
+**Base URL**
 
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+```
+/api/v4
+```
 
 ## Authentication
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+All API endpoints require a valid API key passed as a Bearer token. See the [Authentication](/api-reference/authentication) page for details.
+
+## Request format
+
+- Set `Content-Type: application/json` on all requests with a body.
+- Timestamps are UTC Unix timestamps in **seconds** (integer). All timestamps are automatically truncated to the start of the minute.
+
+## Response format
+
+Successful responses return the requested or mutated resource directly in the JSON body. Error responses follow a consistent shape:
 
 ```json
-"security": [
-  {
-    "bearerAuth": []
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable description."
   }
-]
+}
 ```
+
+### HTTP status codes
+
+| Status | Meaning |
+|--------|---------|
+| `200` | Request succeeded. |
+| `201` | Resource created successfully. |
+| `400` | Bad request — missing or invalid parameters. |
+| `401` | Unauthorized — missing or invalid API key. |
+| `404` | Resource not found. |
+| `500` | Internal server error. |
+
+### Error codes
+
+| Code | Description |
+|------|-------------|
+| `BAD_REQUEST` | Validation failed or required fields are missing. |
+| `UNAUTHORIZED` | API key is missing or invalid. |
+| `NOT_FOUND` | The requested resource does not exist. |
+| `INTERNAL_ERROR` | An unexpected server-side error occurred. |
+
+## Pagination
+
+The maintenance events list endpoints support cursor-style pagination via `page` and `limit` query parameters.
+
+| Parameter | Default | Max | Description |
+|-----------|---------|-----|-------------|
+| `page` | `1` | — | Page number (1-indexed). |
+| `limit` | `20` | `100` | Number of results per page. |
+
+Paginated responses include `page`, `limit`, and (where available) `total` fields at the top level of the response object.
+
+## Available resources
+
+<CardGroup cols={2}>
+  <Card title="Monitors" icon="activity" href="/api-reference/monitors">
+    Create, read, update monitors. Push and query monitoring data points.
+  </Card>
+  <Card title="Incidents" icon="triangle-alert" href="/api-reference/incidents">
+    Manage incidents and add timeline comments.
+  </Card>
+  <Card title="Maintenances" icon="wrench" href="/api-reference/maintenances">
+    Schedule recurring or one-time maintenance windows and manage their events.
+  </Card>
+  <Card title="Pages" icon="layout-panel-top" href="/api-reference/pages">
+    Create and configure status pages and their monitor lists.
+  </Card>
+  <Card title="Site" icon="settings" href="/api-reference/site">
+    Read and update global site configuration keys.
+  </Card>
+</CardGroup>

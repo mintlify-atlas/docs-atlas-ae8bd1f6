@@ -1,0 +1,212 @@
+---
+title: 'Ping, TCP & DNS monitors'
+description: 'Monitor host reachability with ICMP, check TCP port availability, and validate DNS records.'
+---
+
+These three monitor types cover low-level network health checks: ICMP reachability, TCP port availability, and DNS record validation.
+
+## Ping monitor
+
+Ping monitors send ICMP packets to one or more hosts and evaluate the combined result.
+
+### Configuration
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `hosts` | `Array<{ type, host, timeout, count }>` | one empty host row | At least one host required |
+| `pingEval` | `string` (JS function) | built-in default | Optional custom eval |
+
+**Host fields:**
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `type` | `IP4 \| IP6 \| DOMAIN` | `IP4` | Address type |
+| `host` | `string` | — | Required |
+| `timeout` | `number` | `1000` | Timeout per ping attempt in ms |
+| `count` | `number` | `3` | Number of ICMP packets to send |
+
+### Default eval behavior
+
+- **UP** if all hosts respond (`alive === true`)
+- **DOWN** if any host is unreachable
+- Latency = average latency across all hosts
+
+The built-in eval function:
+
+```javascript
+async function (arrayOfPings) {
+    let latencyTotal = arrayOfPings.reduce((acc, ping) => {
+        return acc + ping.latency;
+    }, 0);
+
+    let alive = arrayOfPings.reduce((acc, ping) => {
+        return acc && ping.alive;
+    }, true);
+
+    return {
+        status: alive ? 'UP' : 'DOWN',
+        latency: latencyTotal / arrayOfPings.length,
+    }
+}
+```
+
+### Custom eval contract
+
+Your function receives `arrayOfPings` and must return `{ status, latency }`.
+
+### Example
+
+```json
+{
+    "type": "PING",
+    "type_data": {
+        "hosts": [
+            { "type": "IP4", "host": "8.8.8.8", "timeout": 1000, "count": 3 }
+        ]
+    }
+}
+```
+
+### Troubleshooting
+
+- **Frequent DOWN**: some networks and firewalls block ICMP — consider switching to a TCP check on the same host
+- **Noisy latency**: increase `count` to reduce the effect of a single dropped packet
+- **Validation error**: the `type` field must match the format of the address (e.g., `IP4` for IPv4 addresses)
+
+---
+
+## TCP monitor
+
+TCP monitors attempt to open a connection to a host and port, and report whether the port is `open`, `timeout`, or `error`.
+
+### Configuration
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `hosts` | `Array<{ type, host, port, timeout }>` | one empty host row | At least one host required |
+| `tcpEval` | `string` (JS function) | built-in default | Optional custom eval |
+
+**Host fields:**
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `type` | `IP4 \| IP6 \| DOMAIN` | `IP4` | Address type |
+| `host` | `string` | — | Required |
+| `port` | `number` | `80` | TCP port to probe |
+| `timeout` | `number` | `1000` | Connection timeout in ms |
+
+### Default eval behavior
+
+- **UP** if every host result has `status === "open"`
+- **DOWN** otherwise
+- Latency = average connection latency across all hosts
+
+The built-in eval function:
+
+```javascript
+async function (arrayOfPings) {
+    let latencyTotal = arrayOfPings.reduce((acc, ping) => {
+        return acc + ping.latency;
+    }, 0);
+
+    let alive = arrayOfPings.reduce((acc, ping) => {
+        return acc && ping.status === "open";
+    }, true);
+
+    return {
+        status: alive ? 'UP' : 'DOWN',
+        latency: latencyTotal / arrayOfPings.length,
+    }
+}
+```
+
+### Custom eval contract
+
+Your function receives `arrayOfPings` (TCP result objects) and must return `{ status, latency }`.
+
+### Example
+
+```json
+{
+    "type": "TCP",
+    "type_data": {
+        "hosts": [
+            { "type": "IP4", "host": "db.example.com", "port": 5432, "timeout": 2000 }
+        ]
+    }
+}
+```
+
+### Troubleshooting
+
+- **Timeout**: the network path is blocked or the service is slow to accept connections
+- **Error**: the host is wrong, the port is not listening, or DNS resolution failed
+- **Validation error**: the `type` field must match the format of the address
+
+---
+
+## DNS monitor
+
+DNS monitors query a DNS record for a host and compare the returned values to your expected list.
+
+### Configuration
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `host` | `string` | — | Required — the domain to query |
+| `nameServer` | `string` | `""` | Optional DNS resolver override |
+| `lookupRecord` | `string` | `A` | Record type to look up (e.g. `A`, `AAAA`, `CNAME`, `MX`, `TXT`) |
+| `matchType` | `ANY \| ALL` | `ANY` | How to compare results to expected values |
+| `values` | `string[]` | `[]` | Expected record values (at least one required) |
+
+### Match behavior
+
+| `matchType` | Result |
+|---|---|
+| `ANY` | **UP** when at least one expected value is present in the DNS response |
+| `ALL` | **UP** only when every expected value is present in the DNS response |
+
+### Value normalization
+
+Before comparison, both the DNS response values and your expected values are normalized:
+
+- converted to lowercase
+- trailing `.` removed
+- whitespace trimmed
+
+### Example
+
+<CodeGroup>
+
+```json Check A record
+{
+    "type": "DNS",
+    "type_data": {
+        "host": "example.com",
+        "lookupRecord": "A",
+        "matchType": "ANY",
+        "values": ["93.184.216.34"]
+    }
+}
+```
+
+```json Check MX record with custom nameserver
+{
+    "type": "DNS",
+    "type_data": {
+        "host": "example.com",
+        "nameServer": "8.8.8.8",
+        "lookupRecord": "MX",
+        "matchType": "ANY",
+        "values": ["mail.example.com"]
+    }
+}
+```
+
+</CodeGroup>
+
+### Troubleshooting
+
+- **Unexpected DOWN**: copy the exact value from a manual `dig` query — normalization applies, so remove trailing dots
+- **No response**: verify that the record type exists and that the resolver is reachable from Kener
+- **Partial mismatch with multiple IPs**: use `ANY` for dynamic DNS setups where the response varies

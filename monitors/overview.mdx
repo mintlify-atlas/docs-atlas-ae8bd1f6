@@ -1,0 +1,113 @@
+---
+title: 'Monitors overview'
+description: 'Understand monitor types, status values, polling, and how uptime is calculated in Kener.'
+---
+
+Monitors are scheduled checks that write a status and latency sample on every run. Each monitor has a **tag** (a URL-friendly identifier), a **name**, a **type**, and a **cron schedule**.
+
+## Status values
+
+Every monitoring result resolves to one of five statuses:
+
+| Status | Meaning |
+|---|---|
+| `UP` | Check succeeded |
+| `DEGRADED` | Check succeeded but is outside a healthy threshold |
+| `DOWN` | Check failed |
+| `MAINTENANCE` | Overridden by an active maintenance window |
+| `NO_DATA` | No result recorded yet (common on freshly created heartbeat monitors) |
+
+## Status priority
+
+When multiple sources could apply, Kener resolves status by priority:
+
+```
+MAINTENANCE > INCIDENT > REALTIME > DEFAULT
+```
+
+An active maintenance window or open incident overrides any live check result.
+
+## Scheduling
+
+Monitors run on a cron expression set per monitor (for example `* * * * *` for every minute). Use tighter schedules for critical services and more relaxed schedules for low-risk dependencies.
+
+## Monitor tag rules
+
+A monitor tag is used in URLs and as a unique key. It must:
+
+- contain only lowercase letters, numbers, hyphens (`-`), and underscores (`_`)
+- start and end with a letter or number
+- be unique across all monitors
+
+Examples of valid tags: `api-gateway`, `db_primary`, `web01`
+
+## Uptime calculation
+
+The default uptime formula is:
+
+```
+  UP + MAINTENANCE + DEGRADED
+---------------------------------  × 100
+UP + MAINTENANCE + DEGRADED + DOWN
+```
+
+You can override the numerator and denominator expressions per monitor in **Monitor settings**.
+
+## Monitor types
+
+<CardGroup cols={2}>
+  <Card title="API" icon="globe" href="/monitors/api">
+    Monitor HTTP/HTTPS endpoints with custom methods, headers, body, and JavaScript eval logic.
+  </Card>
+  <Card title="Ping, TCP & DNS" icon="network-wired" href="/monitors/ping-tcp-dns">
+    ICMP reachability, TCP port availability, and DNS record validation.
+  </Card>
+  <Card title="SSL, SQL & gRPC" icon="lock" href="/monitors/ssl-sql-grpc">
+    TLS certificate expiry, database query health, and gRPC Health Checking Protocol.
+  </Card>
+  <Card title="Heartbeat" icon="heart-pulse" href="/monitors/heartbeat">
+    Passive push-based monitoring — your service pings Kener to prove it is alive.
+  </Card>
+  <Card title="Groups" icon="layer-group" href="/monitors/groups">
+    Aggregate multiple monitors into a single weighted status.
+  </Card>
+</CardGroup>
+
+### All supported types
+
+| Type | How it works |
+|---|---|
+| `API` | Sends an HTTP request and evaluates the response with JavaScript |
+| `PING` | Sends ICMP packets to one or more hosts |
+| `TCP` | Opens a TCP connection to a host and port |
+| `DNS` | Resolves a DNS record and compares it to expected values |
+| `SSL` | Checks TLS certificate expiry against time thresholds |
+| `SQL` | Runs a query against a database connection |
+| `HEARTBEAT` | Waits for your service to call Kener's heartbeat endpoint |
+| `GRPC` | Calls the standard gRPC Health Checking Protocol |
+| `GAMEDIG` | Queries a game server using the GameDig library |
+| `GROUP` | Aggregates member monitor statuses with configurable weights |
+| `NONE` | A placeholder monitor with no active check |
+
+## Creating a monitor
+
+<Steps>
+  <Step title="Open the dashboard">
+    Navigate to **Monitors** in the Kener management dashboard.
+  </Step>
+  <Step title="Click New monitor">
+    Select the monitor type that fits your check — API, Ping, TCP, DNS, SSL, SQL, Heartbeat, gRPC, GameDig, or Group.
+  </Step>
+  <Step title="Set the tag and name">
+    Enter a unique, URL-friendly tag (e.g. `api-gateway`) and a human-readable name. The tag cannot be changed after creation.
+  </Step>
+  <Step title="Configure type-specific fields">
+    Fill in the fields required for the monitor type — URL, host, port, thresholds, and so on. See the per-type pages for details.
+  </Step>
+  <Step title="Set the cron schedule">
+    Enter a cron expression for how often the check should run. `* * * * *` runs every minute.
+  </Step>
+  <Step title="Save">
+    Click **Save**. The monitor becomes active immediately and starts writing results on its next scheduled run.
+  </Step>
+</Steps>

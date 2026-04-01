@@ -1,0 +1,131 @@
+---
+title: "Customizing Your Status Page"
+description: "Adjust branding, colors, fonts, CSS, locale, and analytics for your Kener status page."
+---
+
+Most customization settings live under **Manage → Site Configurations** and **Manage → Customizations**. Changes take effect immediately for all visitors.
+
+## Site identity
+
+Go to **Manage → Site Configurations** to set the core identity fields.
+
+| Field | Description |
+|-------|-------------|
+| **Site Name** | Displayed in the header and browser tab |
+| **Site URL** | Full origin URL (protocol + domain only, e.g. `https://status.example.com`) |
+
+### Logo
+
+Upload a site-wide logo (PNG, JPG, or WebP; max 256 × 256 px). Individual pages can override this with a per-page logo set in the page editor.
+
+### Favicon
+
+Upload a favicon (PNG, JPG, or WebP; max 64 × 64 px). The uploaded file is served from your Kener instance.
+
+## Theme and colors
+
+Go to **Manage → Customizations** to configure the default color theme.
+
+**Default theme** options: `light`, `dark`, or `system` (follows the visitor's OS preference).
+
+Toggle **Allow users to toggle theme** to show or hide the light/dark switch on the public page.
+
+### Status colors
+
+You can override the color used for each status in both light and dark modes:
+
+| Status | Default light | Default dark |
+|--------|--------------|--------------|
+| UP | `#67ab95` | `#67ab95` |
+| DEGRADED | `#e6ca61` | `#e6ca61` |
+| DOWN | `#ca3038` | `#ca3038` |
+| MAINTENANCE | `#6679cc` | `#6679cc` |
+| Accent | `#f4f4f5` | `#27272a` |
+| Accent Foreground | `#e96e2d` | `#e96e2d` |
+
+## Custom CSS
+
+Paste CSS directly into the **Custom CSS** editor at **Manage → Customizations**. Do not include `<style>` tags — only raw CSS rules.
+
+```css
+/* Example: change the page background */
+body {
+  background-color: #0f0f0f;
+}
+```
+
+<Note>
+  Custom CSS is injected globally and applies to all status pages.
+</Note>
+
+## Fonts
+
+Supply a web font by providing two values in **Manage → Customizations → Font**:
+
+| Field | Example |
+|-------|---------|
+| **Font CSS URL** | `https://fonts.bunny.net/css?family=lato:400,700&display=swap` |
+| **Font Family Name** | `Lato` |
+
+Any web font from Google Fonts, Bunny Fonts, or a self-hosted source can be used.
+
+## Footer HTML
+
+Replace the default Kener footer with custom HTML in **Manage → Customizations → Site Footer**. The editor supports full HTML. Click **Reset to Default** to restore the original footer.
+
+## Home incident count
+
+`homeIncidentCount` controls how many resolved incidents appear on the homepage. Set it via the API or site data configuration. Setting it to `0` hides the incident list entirely.
+
+`homeIncidentStartTimeWithin` limits incidents to those that started within a given number of seconds. Both values are stored as site-level settings.
+
+## Locale and language
+
+Go to **Manage → Internationalization** to configure language support.
+
+- Enable individual locales from the available list.
+- Set a **Default Locale** — this is the language shown to visitors who have no locale cookie.
+- Enabled locales appear in the language selector on the public page.
+
+The `tzToggle` setting (also in **Internationalization**) lets visitors switch between UTC and their local timezone. When disabled, all times are shown in UTC.
+
+### Date and time format
+
+Kener uses `date-fns` format strings. The defaults are:
+
+| Setting | Default |
+|---------|---------|
+| Date + Time | `PPpp` |
+| Date only | `PP` |
+| Time only | `pp` |
+
+## Analytics
+
+You can connect analytics providers in **Manage → Analytics Providers**. Kener supports:
+
+- Google Tag Manager
+- Plausible
+- Mixpanel
+- Amplitude
+- Microsoft Clarity
+- Umami
+- PostHog
+
+Each provider has its own configuration fields. Refer to the [Analytics](/admin/analytics) section for setup details.
+
+## Announcements
+
+Display a site-wide banner in **Manage → Customizations → Announcement**:
+
+| Field | Description |
+|-------|-------------|
+| **Title** | Headline text |
+| **Message** | Body text |
+| **Type** | `INFO`, `WARNING`, or `ERROR` |
+| **Reshow After (hours)** | Re-display the banner after dismissal; leave empty to never reshow |
+| **Cancellable** | Whether visitors can dismiss it |
+| **CTA URL / Text** | Optional call-to-action link |
+
+## Page ordering
+
+When multiple pages exist, control the order of the page switcher in **Manage → Customizations → Page Ordering**. Enable custom ordering and drag pages into the desired sequence.

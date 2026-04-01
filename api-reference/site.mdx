@@ -1,0 +1,237 @@
+---
+title: "Site API"
+description: "Read and update global site configuration keys that control appearance, behavior, and integrations."
+---
+
+## Overview
+
+The Site API exposes the key-value store that backs your Kener site configuration. Each key corresponds to a specific setting you can also manage through the dashboard.
+
+---
+
+## Site data item object
+
+<ResponseField name="key" type="string">
+  The configuration key name.
+</ResponseField>
+
+<ResponseField name="value" type="string | object">
+  The current value. Keys with `data_type: "string"` return a string. Keys with `data_type: "object"` return a parsed JSON object.
+</ResponseField>
+
+<ResponseField name="data_type" type="string">
+  `"string"` or `"object"`.
+</ResponseField>
+
+---
+
+## Get all site configuration
+
+Returns all stored site configuration keys and their current values.
+
+```
+GET /api/v4/site
+```
+
+**Response** `200`
+
+```json
+{
+  "site_data": [
+    {
+      "key": "title",
+      "value": "Acme Status",
+      "data_type": "string"
+    },
+    {
+      "key": "siteName",
+      "value": "Acme Corp",
+      "data_type": "string"
+    },
+    {
+      "key": "theme",
+      "value": "dark",
+      "data_type": "string"
+    }
+  ]
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/site \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Get a configuration key
+
+Returns the value for a single configuration key.
+
+```
+GET /api/v4/site/{config_key}
+```
+
+**Path parameters**
+
+<ParamField path="config_key" type="string" required>
+  The name of the configuration key to retrieve. Must be a valid key (see [valid keys](#valid-configuration-keys) below).
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "key": "theme",
+  "value": "dark",
+  "data_type": "string"
+}
+```
+
+**Response** `404` — key is unknown or has no stored value
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Config key 'unknownKey' is not a valid configuration key"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/site/theme \
+  -H "Authorization: Bearer kener_..."
+```
+
+```bash curl (object key)
+curl -X GET https://your-kener-instance.com/api/v4/site/colors \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Update a configuration key
+
+Sets a new value for a configuration key. The value is validated against the key's schema before being stored.
+
+```
+PATCH /api/v4/site/{config_key}
+```
+
+**Path parameters**
+
+<ParamField path="config_key" type="string" required>
+  The name of the configuration key to update.
+</ParamField>
+
+<ParamField body="value" type="string | object" required>
+  The new value. Must match the key's expected type: a plain string for `data_type: "string"` keys, or a JSON object for `data_type: "object"` keys.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "key": "theme",
+  "value": "light",
+  "data_type": "string"
+}
+```
+
+<CodeGroup>
+
+```bash curl (string key)
+curl -X PATCH https://your-kener-instance.com/api/v4/site/theme \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "value": "light" }'
+```
+
+```bash curl (object key)
+curl -X PATCH https://your-kener-instance.com/api/v4/site/colors \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "value": {
+      "up": "#28a745",
+      "down": "#dc3545",
+      "degraded": "#ffc107",
+      "maintenance": "#17a2b8"
+    }
+  }'
+```
+
+</CodeGroup>
+
+---
+
+## Valid configuration keys
+
+Only the following keys are accepted. Requests for other keys return `404`.
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `title` | string | Browser tab title. |
+| `siteName` | string | Site display name. |
+| `siteURL` | string | Canonical URL of the site. |
+| `home` | string | Home page path. |
+| `favicon` | string | Favicon URL or path. |
+| `logo` | string | Logo URL or path. |
+| `footerHTML` | string | Custom HTML injected into the footer. |
+| `kenerTheme` | string | Active theme name. |
+| `customCSS` | string | Additional CSS injected globally. |
+| `theme` | string | Color scheme: `light`, `dark`, `system`, or `none`. |
+| `themeToggle` | string | Whether the theme toggle is visible. |
+| `tzToggle` | string | Whether the timezone toggle is visible. |
+| `showSiteStatus` | string | Whether to display the overall site status banner. |
+| `barStyle` | string | Uptime bar style: `PARTIAL` or `FULL`. |
+| `barRoundness` | string | Uptime bar corners: `SHARP` or `ROUNDED`. |
+| `summaryStyle` | string | Status summary mode: `CURRENT` or `DAY`. |
+| `pattern` | string | Background pattern. One of `dots`, `squares`, `tiles`, `none`, `radial-blue`, `radial-mono`, `radial-midnight`, `circle-mono`, `carbon-fibre`, `texture-sky`, `angular-mono`, `angular-spring`, `angular-bloom`, `pets`. |
+| `socialPreviewImage` | string | OG/Twitter card image URL. |
+| `metaSiteTitle` | string | Default `<meta>` title. |
+| `metaSiteDescription` | string | Default `<meta>` description. |
+| `homeIncidentCount` | string | Number of incidents shown on the home page (integer ≥ 0). |
+| `homeIncidentStartTimeWithin` | string | Show incidents that started within this many days (integer ≥ 1). |
+| `incidentGroupView` | string | Incident grouping display mode. |
+| `homeDataMaxDays` | object | Maximum days of data shown on the home page. |
+| `metaTags` | object | Custom `<meta>` tags. |
+| `nav` | object | Navigation configuration. |
+| `hero` | object | Hero section configuration. |
+| `i18n` | object | Internationalization strings. |
+| `analytics` | object | Analytics provider settings. |
+| `analytics.googleTagManager` | object | Google Tag Manager configuration. |
+| `analytics.plausible` | object | Plausible Analytics configuration. |
+| `analytics.mixpanel` | object | Mixpanel configuration. |
+| `analytics.amplitude` | object | Amplitude configuration. |
+| `analytics.clarity` | object | Microsoft Clarity configuration. |
+| `analytics.umami` | object | Umami Analytics configuration. |
+| `analytics.posthog` | object | PostHog configuration. |
+| `colors` | object | Status color overrides (light mode). |
+| `colorsDark` | object | Status color overrides (dark mode). |
+| `font` | object | Custom font settings. |
+| `monitorSort` | object | Monitor sort order. |
+| `categories` | object | Category definitions. |
+| `subscriptionsSettings` | object | Email subscription settings. |
+| `subMenuOptions` | object | Sub-menu link configuration. |
+| `announcement` | object | Announcement banner content. |
+| `dataRetentionPolicy` | object | Data retention configuration. |
+| `eventDisplaySettings` | object | Event display preferences. |
+| `globalPageVisibilitySettings` | object | Page visibility controls. |
+| `pageOrderingSettings` | object | Page ordering configuration. |
+| `dateAndTimeFormat` | object | Date and time format preferences. |
+| `sitemap` | object | Sitemap configuration. |
+| `globalMaintenanceNotificationSettings` | object | Global maintenance notification settings. |
+
+<Warning>
+  Submitting an invalid value for a key returns `400 BAD_REQUEST`. Each key enforces its own validation rules — for example, `siteURL` must be a valid URL and `theme` must be one of the enumerated values.
+</Warning>

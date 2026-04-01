@@ -1,0 +1,129 @@
+---
+title: "Notifications & Alerts"
+description: "How Kener sends alerts when your monitors change state — channels, alert configs, and evaluation logic."
+---
+
+Kener's notification system has two layers that work together:
+
+1. **Triggers** — reusable delivery channels (email, Slack, Discord, or a custom webhook). Each trigger stores where to send a notification and how to format it.
+2. **Alert configs** — rules that watch a monitor (or several monitors) and fire when a condition is met. Each alert config references one or more triggers.
+
+This separation lets you define a "Slack #ops" channel once as a trigger, then attach it to as many alert configs as you like.
+
+## How it works
+
+```
+Monitor check runs
+       │
+       ▼
+Alert config evaluates condition
+  (STATUS DOWN, LATENCY > Nms, UPTIME < X%)
+       │
+       ├─ failure_threshold consecutive failures → TRIGGERED
+       │         │
+       │         ▼
+       │   Sends notification via attached triggers
+       │
+       └─ success_threshold consecutive successes → RESOLVED
+                 │
+                 ▼
+           Sends resolution via attached triggers
+```
+
+When an alert config transitions from **TRIGGERED** to **RESOLVED**, Kener fires another round of notifications so you know the issue cleared.
+
+## Alert types
+
+Each alert config monitors one of three things:
+
+| `alert_for` | `alert_value` | Fires when |
+|---|---|---|
+| `STATUS` | `DOWN` or `DEGRADED` | Monitor reaches that status |
+| `LATENCY` | Number (milliseconds) | Response latency exceeds the value |
+| `UPTIME` | Number (0–100, percentage) | Uptime drops below the value |
+
+## Thresholds
+
+Two thresholds control noise:
+
+| Field | Type | Description |
+|---|---|---|
+| `failure_threshold` | Integer ≥ 1 | Consecutive failures required before firing the alert |
+| `success_threshold` | Integer ≥ 1 | Consecutive successes required before resolving the alert |
+
+Setting `failure_threshold` to `3` means a single blip won't page you — the monitor must fail three times in a row.
+
+## Severity
+
+Alert configs have a `severity` of either `WARNING` or `CRITICAL`. Severity is included in every notification payload so downstream tools (PagerDuty, Opsgenie, custom scripts) can route accordingly.
+
+## Automatic incident creation
+
+Set **Create Incident** to `YES` on an alert config to automatically open an incident when the alert fires. The incident ID and URL are included in the notification payload.
+
+## Notification channels
+
+<CardGroup cols={2}>
+  <Card title="Email" icon="envelope" href="/notifications/email-smtp">
+    Send alerts via SMTP or Resend API to one or more recipients
+  </Card>
+  <Card title="Slack" icon="slack" href="/notifications/slack-discord-webhook">
+    Post rich Block Kit messages to a Slack channel via incoming webhook
+  </Card>
+  <Card title="Discord" icon="discord" href="/notifications/slack-discord-webhook">
+    Post embed messages to a Discord channel via webhook URL
+  </Card>
+  <Card title="Webhook" icon="webhook" href="/notifications/slack-discord-webhook">
+    HTTP POST to any URL with a customizable JSON payload and headers
+  </Card>
+</CardGroup>
+
+## Variable reference
+
+Every notification template (for all channel types) receives the following Mustache variables at render time:
+
+| Variable | Type | Description |
+|---|---|---|
+| `alert_id` | number | Unique ID of this alert record |
+| `alert_name` | string | Human-readable alert label |
+| `alert_for` | string | `STATUS`, `LATENCY`, or `UPTIME` |
+| `alert_value` | string | Threshold value (e.g. `DOWN`, `1000`, `99`) |
+| `alert_status` | string | `TRIGGERED` or `RESOLVED` |
+| `alert_severity` | string | `WARNING` or `CRITICAL` |
+| `alert_message` | string | Alert description from the config |
+| `alert_source` | string | Source identifier (`alert`) |
+| `alert_timestamp` | string | ISO 8601 timestamp |
+| `alert_cta_url` | string | Link to the monitor page |
+| `alert_cta_text` | string | Label for the CTA link |
+| `alert_incident_id` | number \| null | Incident ID if one was created |
+| `alert_incident_url` | string \| null | Direct URL to the incident |
+| `alert_failure_threshold` | number | Configured failure threshold |
+| `alert_success_threshold` | number | Configured success threshold |
+| `is_resolved` | boolean | `true` when the alert cleared |
+| `is_triggered` | boolean | `true` when the alert fired |
+| `site_url` | string | Public URL of the Kener instance |
+| `site_name` | string | Display name of the Kener site |
+| `site_logo_url` | string | Absolute URL to the site logo |
+| `colors_up` | string | Hex color for UP status |
+| `colors_down` | string | Hex color for DOWN status |
+| `colors_degraded` | string | Hex color for DEGRADED status |
+| `colors_maintenance` | string | Hex color for MAINTENANCE status |
+
+Mustache conditional blocks work as expected:
+
+```
+{{#is_triggered}}🚨 Alert fired{{/is_triggered}}
+{{#is_resolved}}✅ Issue resolved{{/is_resolved}}
+{{#alert_incident_url}}<{{alert_incident_url}}|View Incident>{{/alert_incident_url}}
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Alert triggers" icon="bell" href="/notifications/triggers">
+    Create and configure delivery channels
+  </Card>
+  <Card title="Email setup" icon="envelope" href="/notifications/email-smtp">
+    Configure SMTP or Resend for email alerts
+  </Card>
+</CardGroup>

@@ -1,24 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "Kener",
+  "projectType": "saas",
+  "projectName": "Kener",
+  "projectDescription": "Kener is an open-source, self-hosted status page application with real-time monitoring, incident management, and customizable public dashboards for communicating service health.",
   "theme": "luma",
-  "colors": {
-    "primary": "#d0151e",
-    "light": "#a24c59",
-    "dark": "#c6b3b4"
-  },
-  "favicon": "https://media.brand.dev/80417cc9-7a3e-4e0b-a7a6-f6a735ad3a2a.png",
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/rajnandan1/kener"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/rajnandan1/kener"
-    }
-  },
+  "primaryColor": "#d0151e",
+  "lightColor": "#a24c59",
+  "darkColor": "#c6b3b4",
   "navigation": {
     "tabs": [
       {
@@ -103,5 +90,33 @@
         ]
       }
     ]
-  }
+  },
+  "keyFeatures": [
+    "Multi-type monitoring: API, Ping, TCP, DNS, SSL, SQL, Heartbeat, GameDig, gRPC",
+    "Incident management with timelines, updates, and acknowledgements",
+    "Scheduled maintenance windows with user notifications",
+    "Customizable public status pages with branding, light/dark mode, and localization",
+    "Multi-page support from a single Kener instance",
+    "Role-based access control and team collaboration",
+    "Notifications via Email, Webhook, Slack, and Discord",
+    "Embeddable status badges and widgets",
+    "REST API for incidents, monitors, and reporting",
+    "Analytics integrations: GA, Plausible, Mixpanel, Umami, Clarity",
+    "SQLite, PostgreSQL, and MySQL database support",
+    "Docker-first deployment with Redis-backed queues"
+  ],
+  "publicApiSurface": [
+    "GET /api/v4/monitors",
+    "GET/POST/PATCH/DELETE /api/v4/monitors/:tag",
+    "GET /api/v4/incidents",
+    "POST /api/v4/incidents",
+    "PATCH/DELETE /api/v4/incidents/:id",
+    "GET /api/v4/maintenances",
+    "POST /api/v4/maintenances",
+    "GET /api/v4/pages",
+    "GET /api/v4/site",
+    "MonitorStatus: UP | DOWN | DEGRADED | MAINTENANCE | NO_DATA",
+    "MonitorType: API | PING | TCP | DNS | SSL | SQL | HEARTBEAT | GAMEDIG | GRPC | GROUP | NONE",
+    "IncidentState: INVESTIGATING | IDENTIFIED | MONITORING | RESOLVED"
+  ]
 }

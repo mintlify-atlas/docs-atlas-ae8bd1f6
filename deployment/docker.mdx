@@ -1,0 +1,257 @@
+---
+title: "Docker deployment"
+description: "Run Kener in production with Docker Compose, including Redis and optional PostgreSQL or MySQL."
+---
+
+The recommended way to run Kener in production is with Docker Compose. The included `docker-compose.yml` starts Kener and Redis together with health checks, named volumes, and `restart: unless-stopped`.
+
+## Pre-built images
+
+Two registries publish Kener images on every release:
+
+| Registry | Image |
+|---|---|
+| Docker Hub | `docker.io/rajnandan1/kener:latest` |
+| GHCR | `ghcr.io/rajnandan1/kener:latest` |
+
+### Debian vs Alpine
+
+| Variant | Tag |
+|---|---|
+| Debian (default) | `latest` |
+| Alpine | `alpine` |
+
+Alpine images are smaller. Debian images are more compatible with native Node.js modules. Use `alpine` in the `image:` field of `docker-compose.yml` to switch:
+
+```yaml
+image: rajnandan1/kener:alpine
+```
+
+## Production Compose setup
+
+```yaml
+# docker-compose.yml
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: kener-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kener:
+    image: rajnandan1/kener:latest
+    # For Alpine variant use: rajnandan1/kener:alpine
+    container_name: kener
+    environment:
+      # ── Required ──
+      KENER_SECRET_KEY: replace_me_with_a_random_string # generate: openssl rand -base64 32
+      ORIGIN: http://localhost:3000 # public URL of your Kener instance (required for CSRF protection)
+      REDIS_URL: redis://redis:6379
+
+      # ── Database (default: SQLite) ──
+      # DATABASE_URL: sqlite://./database/kener.sqlite.db
+      # DATABASE_URL: postgresql://user:password@postgres:5432/kener
+      # DATABASE_URL: mysql://user:password@mysql:3306/kener
+
+      # ── Email (optional) ──
+      # RESEND_API_KEY:
+      # RESEND_SENDER_EMAIL:
+      # SMTP_HOST:
+      # SMTP_PORT:
+      # SMTP_USER:
+      # SMTP_PASSWORD:
+      # SMTP_SENDER:
+      # SMTP_SECURE: 0
+
+      # ── Advanced (you likely don't need to change these) ──
+      # PORT: 3000
+      # KENER_BASE_PATH:
+      # NODE_ENV: production          # already set in the image
+    ports:
+      - "3000:3000"
+    volumes:
+      - data:/app/database
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  data:
+    name: kener_db
+  redis_data:
+    name: kener_redis
+```
+
+<Warning>
+  Set `KENER_SECRET_KEY` to a strong random string and `ORIGIN` to your public URL before starting for the first time. Run `openssl rand -base64 32` to generate a suitable key.
+</Warning>
+
+## Optional databases
+
+By default Kener uses SQLite stored in `/app/database`. For production deployments that need a managed database, PostgreSQL and MySQL are both supported.
+
+<Tabs>
+  <Tab title="PostgreSQL">
+    Uncomment the `postgres` service and set `DATABASE_URL` in the `kener` service:
+
+    ```yaml
+    services:
+      postgres:
+        image: postgres:16-alpine
+        container_name: kener-postgres
+        environment:
+          POSTGRES_USER: kener
+          POSTGRES_PASSWORD: change_me
+          POSTGRES_DB: kener
+        volumes:
+          - postgres_data:/var/lib/postgresql/data
+        restart: unless-stopped
+        healthcheck:
+          test: ["CMD-SHELL", "pg_isready -U kener"]
+          interval: 10s
+          timeout: 5s
+          retries: 5
+
+      kener:
+        environment:
+          DATABASE_URL: postgresql://kener:change_me@postgres:5432/kener
+        depends_on:
+          postgres:
+            condition: service_healthy
+
+    volumes:
+      postgres_data:
+        name: kener_postgres
+    ```
+  </Tab>
+  <Tab title="MySQL / MariaDB">
+    Uncomment the `mysql` service and set `DATABASE_URL` in the `kener` service:
+
+    ```yaml
+    services:
+      mysql:
+        image: mariadb:11
+        container_name: kener-mysql
+        environment:
+          MYSQL_USER: kener
+          MYSQL_PASSWORD: change_me
+          MYSQL_DATABASE: kener
+          MYSQL_RANDOM_ROOT_PASSWORD: "true"
+        volumes:
+          - mysql_data:/var/lib/mysql
+        restart: unless-stopped
+        healthcheck:
+          test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+          interval: 10s
+          timeout: 5s
+          retries: 5
+
+      kener:
+        environment:
+          DATABASE_URL: mysql://kener:change_me@mysql:3306/kener
+        depends_on:
+          mysql:
+            condition: service_healthy
+
+    volumes:
+      mysql_data:
+        name: kener_mysql
+    ```
+  </Tab>
+</Tabs>
+
+## Subpath deployment
+
+To serve Kener at a subpath such as `/status`, use the dedicated subpath image tags and set `KENER_BASE_PATH`:
+
+| Registry | Tag |
+|---|---|
+| Docker Hub (Debian) | `rajnandan1/kener:latest-status` |
+| Docker Hub (Alpine) | `rajnandan1/kener:latest-status-alpine` |
+| GHCR (Debian) | `ghcr.io/rajnandan1/kener:latest-status` |
+| GHCR (Alpine) | `ghcr.io/rajnandan1/kener:latest-status-alpine` |
+
+```bash
+mkdir -p database
+docker run -d \
+  --name kener-status \
+  -p 3000:3000 \
+  -v "$(pwd)/database:/app/database" \
+  -e "KENER_SECRET_KEY=replace_with_a_random_string" \
+  -e "ORIGIN=http://localhost:3000" \
+  -e "KENER_BASE_PATH=/status" \
+  -e "REDIS_URL=redis://host.docker.internal:6379" \
+  docker.io/rajnandan1/kener:latest-status
+```
+
+<Note>
+  Keep `ORIGIN` set to the site root (e.g. `http://localhost:3000`), not the subpath (`http://localhost:3000/status`).
+</Note>
+
+## Building from local source
+
+Use `docker-compose.dev.yml` to build and run Kener from your local checkout instead of pulling the published image:
+
+```bash
+# Build and start from local source
+docker compose -f docker-compose.dev.yml up -d --build
+
+# Build a specific variant (alpine or debian)
+docker compose -f docker-compose.dev.yml build --build-arg VARIANT=debian
+```
+
+The dev Compose file builds from the local `Dockerfile` with the following build args:
+
+```yaml
+build:
+  context: .
+  dockerfile: Dockerfile
+  args:
+    VARIANT: alpine   # or "debian"
+    NODE_VERSION: 24
+    WITH_DOCS: "true"
+    KENER_BASE_PATH: ""
+```
+
+### Combining Compose files
+
+To keep the production Redis config from `docker-compose.yml` while replacing only the Kener service with a local build:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+## Volume mounts
+
+| Volume | Container path | Purpose |
+|---|---|---|
+| `kener_db` | `/app/database` | SQLite database file (default) |
+| `kener_redis` | `/data` | Redis persistence |
+
+For external databases (PostgreSQL, MySQL), the `/app/database` volume still stores any file-based assets Kener writes to disk.
+
+## Health check
+
+The Redis service uses a built-in health check. Kener's `depends_on` with `condition: service_healthy` ensures Kener does not start until Redis is ready:
+
+```yaml
+depends_on:
+  redis:
+    condition: service_healthy
+```
+
+The entrypoint script (`docker-entrypoint.sh`) also indexes documentation into Redis when bundled images are used, and sets a 3 MB body size limit for image uploads:
+
+```sh
+export BODY_SIZE_LIMIT="${BODY_SIZE_LIMIT:-3M}"
+```
+
+You can override this by setting `BODY_SIZE_LIMIT` in the container environment.

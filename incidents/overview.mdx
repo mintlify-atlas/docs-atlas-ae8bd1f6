@@ -1,0 +1,102 @@
+---
+title: 'Incidents overview'
+description: 'Understand what incidents are, how they are structured, and how they appear on your status page.'
+---
+
+## What is an incident?
+
+An incident is a record of a service disruption or degradation that you want to communicate to your users. When something goes wrong — a database is unreachable, an API is returning errors, or latency has spiked — you create an incident to:
+
+- Acknowledge the problem publicly on your status page
+- Keep users informed with timestamped updates as you investigate and resolve
+- Build a historical record of past disruptions
+
+Incidents are distinct from maintenance windows. Incidents are unplanned events; maintenance windows are pre-scheduled work you communicate in advance.
+
+## Incident states
+
+Each incident moves through a lifecycle represented by its `state` field. The four states are:
+
+| State | Meaning |
+|---|---|
+| `INVESTIGATING` | The incident has been detected. You are still working to understand the scope and root cause. This is the default state when an incident is created. |
+| `IDENTIFIED` | The root cause has been found. A fix is being worked on or deployed. |
+| `MONITORING` | A fix has been deployed and you are watching the system to confirm it is stable. |
+| `RESOLVED` | The incident is closed. The system is operating normally. Setting a comment to `RESOLVED` automatically sets the incident's `end_date_time`. |
+
+<Note>
+The incident's `state` is driven by its timeline updates (comments). Each update you post carries a state, and the incident's top-level state advances to match the most recent update.
+</Note>
+
+## Incident types
+
+Incidents have an `incident_type` field. The supported type is `INCIDENT`. This field distinguishes incidents from maintenance entries in the database, and controls whether an `end_date_time` is stored: for `INCIDENT` type records, the end time is only set automatically when the incident is resolved.
+
+## Incident sources
+
+The `incident_source` field records how the incident was created:
+
+- `DASHBOARD` — created manually by a team member in the management UI
+- Automatic sources — created by monitor alert rules when a monitor crosses a failure threshold
+
+<Tip>
+Incidents created automatically by alert rules are marked in the dashboard with an "auto-created" indicator so you can distinguish them from manually filed incidents.
+</Tip>
+
+## Global vs. monitor-specific incidents
+
+Every incident has an `is_global` field (`YES` or `NO`).
+
+- **Global incidents** (`is_global: YES`) appear on all status pages. Use this for platform-wide outages. This is the default.
+- **Non-global incidents** (`is_global: NO`) are scoped and only affect pages that include monitors linked to this incident.
+
+You can toggle this setting per incident from the incident detail page.
+
+## Linking incidents to monitors
+
+An incident can be linked to one or more monitors via the `incident_monitors` relationship. When you link a monitor, you also specify the **impact level**:
+
+| Impact | Effect on the monitor |
+|---|---|
+| `DOWN` | The monitor is shown as down for the duration of the incident |
+| `DEGRADED` | The monitor is shown as degraded for the duration of the incident |
+| `MAINTENANCE` | The monitor is shown as under maintenance |
+
+Linking is optional — a global incident with no linked monitors still appears on the status page banner.
+
+## How incidents affect the overall page status
+
+Kener derives the top-level page status message from the combined state of all active monitors and open incidents. The possible page statuses are defined in the source as:
+
+```typescript
+PAGE_STATUS_MESSAGES = {
+  UNDER_MAINTENANCE: "Under Maintenance",
+  ALL_OPERATIONAL: "All Systems Operational",
+  DEGRADED_PERFORMANCE: "Degraded Performance",
+  PARTIAL_DEGRADED: "Partial Degraded Performance",
+  PARTIAL_OUTAGE: "Partial System Outage",
+  MAJOR_OUTAGE: "Major System Outage",
+  NO_DATA: "No Status Available",
+}
+```
+
+An open incident linked to a monitor overrides that monitor's live-check status for the duration of the incident. If multiple monitors are affected, the overall status escalates accordingly (partial outage, major outage, etc.).
+
+## How incidents appear on the public status page
+
+On the public status page, Kener displays:
+
+- A banner showing the current overall status (e.g., "Partial System Outage")
+- An incidents section listing recent and open incidents, configured by the `homeIncidentCount` setting
+- Each incident entry shows: title, affected monitors with their impact level, and the full timeline of updates with timestamps and states rendered as Markdown
+
+The incident list is ordered by most recently updated, so active incidents with new updates appear at the top.
+
+<CardGroup cols={2}>
+  <Card title="Managing incidents" icon="siren" href="/incidents/managing-incidents">
+    Learn how to create, update, and resolve incidents from the dashboard.
+  </Card>
+  <Card title="Scheduling maintenance" icon="calendar" href="/maintenance/scheduling">
+    Plan and communicate upcoming maintenance windows.
+  </Card>
+</CardGroup>

@@ -1,0 +1,178 @@
+---
+title: 'Scheduling maintenance'
+description: 'Create one-time or recurring maintenance windows, link affected monitors, and communicate planned work to users.'
+---
+
+## What is a maintenance window?
+
+A maintenance window is a pre-scheduled period of planned work that you want to communicate to users in advance. Unlike incidents (which are unplanned), maintenance windows let you:
+
+- Warn users before work begins
+- Suppress unexpected-outage alerts during the maintenance period
+- Show a clear "Under Maintenance" status on the public page while work is in progress
+- Automatically mark the window as complete when it ends
+
+## Maintenance structure
+
+A maintenance record in Kener has two levels:
+
+1. **Maintenance** — the template. Defines the title, description, schedule (RRULE + start time + duration), which monitors are affected, and whether it is active.
+2. **Maintenance events** — the concrete occurrences generated from the maintenance template. Each event has its own `start_date_time`, `end_date_time`, and status.
+
+This separation supports both one-time and recurring maintenance without duplicating data.
+
+## Maintenance event states
+
+Each maintenance **event** (occurrence) has one of the following statuses:
+
+| Status | Meaning |
+|---|---|
+| `SCHEDULED` | The event is more than 60 minutes in the future. |
+| `READY` | The event starts within the next 60 minutes. Reminder notifications are sent at this transition. |
+| `ONGOING` | The current time is within the event's start/end window. The affected monitors show the maintenance status on the public page. |
+| `COMPLETED` | The event's `end_date_time` has passed. Kener marks it complete automatically. |
+| `CANCELLED` | The event was manually cancelled. |
+
+<Note>
+The 60-minute reminder buffer is configurable via the global maintenance notification settings (`reminder_buffer_hours`). It controls when an event transitions from `SCHEDULED` to `READY`.
+</Note>
+
+The parent maintenance record itself has a simpler status:
+
+| Status | Meaning |
+|---|---|
+| `ACTIVE` | The maintenance is enabled and events will be generated. |
+| `INACTIVE` | The maintenance is disabled. No new events will be generated. |
+
+## Creating a maintenance window
+
+Go to **Manage → Maintenances → New Maintenance**.
+
+### Required fields
+
+| Field | Description |
+|---|---|
+| **Title** | Short description of the work being done. Required. |
+| **Start date/time** | The date and time of the first (or only) occurrence. Stored as a Unix timestamp (UTC). Required. |
+| **Duration** | How long each window lasts, in seconds. Must be greater than 0. Required. |
+| **RRULE** | An iCalendar RRULE string that defines the recurrence pattern. Required. |
+
+### Optional fields
+
+| Field | Description |
+|---|---|
+| **Description** | Longer explanation of what the maintenance involves. Shown on the public status page. |
+| **Affected monitors** | Monitors whose displayed status should change during the window, with their impact level. |
+| **Global maintenance** | When `YES` (default), the window appears on all status pages. |
+
+## One-time vs. recurring maintenance
+
+Whether a maintenance window is one-time or recurring is determined entirely by the **RRULE**.
+
+<Tabs>
+  <Tab title="One-time">
+    A one-time maintenance uses `FREQ=MINUTELY;COUNT=1` (or any rule with `COUNT=1`). Kener detects `COUNT=1` and treats it as a single occurrence.
+
+    ```
+    FREQ=MINUTELY;COUNT=1
+    ```
+
+    The event is created immediately at the `start_date_time` you provide. No further events are generated.
+
+    <Note>
+    One-time maintenance events that are already more than 24 hours in the past at creation time are not generated. Plan accordingly when back-dating.
+    </Note>
+  </Tab>
+  <Tab title="Recurring">
+    Any RRULE without `COUNT=1` defines a recurring schedule. For example:
+
+    ```
+    FREQ=WEEKLY;BYDAY=SU
+    ```
+
+    This schedules the window every Sunday at the time defined by `start_date_time`.
+
+    Other examples:
+
+    ```
+    FREQ=DAILY
+    FREQ=MONTHLY;BYDAY=1MO
+    FREQ=WEEKLY;BYDAY=MO,WE,FR
+    ```
+
+    Kener uses the [iCalendar RRULE specification](http://www.kanzaki.com/docs/ical/rrule.html) to compute occurrences.
+  </Tab>
+</Tabs>
+
+## How affected monitors are displayed
+
+When you attach a monitor to a maintenance window, you choose its **impact level** during the maintenance:
+
+| Impact | Display on status page |
+|---|---|
+| `UP` | Monitor shows as operational |
+| `DOWN` | Monitor shows as down |
+| `DEGRADED` | Monitor shows as degraded |
+| `MAINTENANCE` | Monitor shows as under maintenance (default) |
+
+During an `ONGOING` event, Kener uses these overrides instead of the monitor's live check results. Once the event is `COMPLETED`, the monitor returns to its live status.
+
+## Automatic event generation
+
+Kener's maintenance scheduler runs **every hour** and pre-generates recurring maintenance events for the next **7 days**. This ensures that upcoming events exist in the database in time for reminder notifications.
+
+For one-time maintenances (`COUNT=1`), events are created at the time the maintenance is saved and are not re-generated by the scheduler.
+
+<Tip>
+If you create a recurring maintenance and do not see an upcoming event immediately, wait up to one hour for the scheduler to run, or check back after a page refresh.
+</Tip>
+
+## Notifications
+
+Kener sends subscriber notifications at key lifecycle transitions for each maintenance event:
+
+| Transition | Notification type |
+|---|---|
+| Event created | `created` |
+| Event transitions to `READY` (within reminder buffer) | `starting_soon` — includes time until start |
+| Event transitions to `ONGOING` | `ongoing` |
+| Event transitions to `COMPLETED` | `completed` |
+
+Which notifications are sent depends on your global maintenance notification settings (`event_types` configuration).
+
+## Editing a maintenance
+
+To edit an existing maintenance:
+
+1. Open it from **Manage → Maintenances**
+2. Modify the title, description, schedule, or monitors
+3. Save
+
+**When the schedule changes** (start time, RRULE, or duration), Kener handles existing events:
+
+- **One-time maintenance:** all non-`COMPLETED` and non-`CANCELLED` events are deleted and a new event is generated from the updated schedule.
+- **Recurring maintenance:** only future `SCHEDULED` events are deleted and regenerated. Events already `ONGOING`, `COMPLETED`, or `CANCELLED` are preserved.
+
+## Deleting a maintenance
+
+Deleting a maintenance permanently removes the maintenance record and all of its associated events and monitor links (via cascade delete).
+
+## How maintenance appears on the public status page
+
+During an `ONGOING` maintenance event:
+
+- Affected monitors display their configured impact level (default: `MAINTENANCE`)
+- If the overall page status is driven by monitors all showing `MAINTENANCE`, the page banner shows **"Under Maintenance"**
+- The maintenance window (title and description) is listed in the maintenance section of the status page for its duration
+
+Past `COMPLETED` events remain visible in the historical view for transparency.
+
+## Filtering the maintenance list
+
+The **Manage → Maintenances** list defaults to showing `ACTIVE` maintenances. Use the status filter to switch between:
+
+- **Active** — maintenances that are enabled and will generate future events
+- **Inactive** — disabled maintenances
+- **All** — both active and inactive
+
+The list shows 10 items per page. Each row displays the maintenance type (One-Time or Recurring), duration, number of affected monitors, and the next upcoming event with its status.

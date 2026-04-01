@@ -1,0 +1,666 @@
+---
+title: "Maintenances API"
+description: "Schedule maintenance windows, manage their events, and link them to affected monitors."
+---
+
+## Maintenance object
+
+<ResponseField name="id" type="integer">
+  Unique numeric identifier.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Maintenance title.
+</ResponseField>
+
+<ResponseField name="description" type="string | null">
+  Optional description.
+</ResponseField>
+
+<ResponseField name="start_date_time" type="integer">
+  UTC Unix timestamp (seconds) for the first occurrence. Truncated to minute start.
+</ResponseField>
+
+<ResponseField name="rrule" type="string">
+  iCalendar RRULE string that defines the recurrence schedule. Use `FREQ=DAILY;COUNT=1` for a one-time window.
+</ResponseField>
+
+<ResponseField name="duration_seconds" type="integer">
+  Length of each maintenance window in seconds.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `ACTIVE` or `INACTIVE`. Inactive maintenances are not applied.
+</ResponseField>
+
+<ResponseField name="monitors" type="array">
+  Monitors affected during this maintenance.
+  <Expandable title="monitor object">
+    <ResponseField name="monitor_tag" type="string">
+      Tag of the linked monitor.
+    </ResponseField>
+    <ResponseField name="impact" type="string">
+      Status reported during the window. One of `UP`, `DOWN`, `DEGRADED`, `MAINTENANCE`. Defaults to `MAINTENANCE`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 creation timestamp.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  ISO 8601 last-updated timestamp.
+</ResponseField>
+
+---
+
+## List maintenances
+
+<ParamField query="status" type="string">
+  Filter by status. `ACTIVE` or `INACTIVE`.
+</ParamField>
+
+<ParamField query="monitor_tag" type="string">
+  Return only maintenances that include this monitor tag.
+</ParamField>
+
+```
+GET /api/v4/maintenances
+```
+
+**Response** `200`
+
+```json
+{
+  "maintenances": [
+    {
+      "id": 1,
+      "title": "Weekly Database Backup",
+      "description": "Automated backup window — expect brief slowdowns.",
+      "start_date_time": 1737010800,
+      "rrule": "FREQ=WEEKLY;BYDAY=SU",
+      "duration_seconds": 3600,
+      "status": "ACTIVE",
+      "monitors": [
+        { "monitor_tag": "database", "impact": "DEGRADED" }
+      ],
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "updated_at": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/maintenances \
+  -H "Authorization: Bearer kener_..."
+```
+
+```bash curl (filtered)
+curl -X GET "https://your-kener-instance.com/api/v4/maintenances?status=ACTIVE&monitor_tag=database" \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Get a maintenance
+
+```
+GET /api/v4/maintenances/{maintenance_id}
+```
+
+**Path parameters**
+
+<ParamField path="maintenance_id" type="integer" required>
+  Numeric ID of the maintenance.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "maintenance": {
+    "id": 1,
+    "title": "Weekly Database Backup",
+    "description": null,
+    "start_date_time": 1737010800,
+    "rrule": "FREQ=WEEKLY;BYDAY=SU",
+    "duration_seconds": 3600,
+    "status": "ACTIVE",
+    "monitors": [
+      { "monitor_tag": "database", "impact": "MAINTENANCE" }
+    ],
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/maintenances/1 \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Create a maintenance
+
+```
+POST /api/v4/maintenances
+```
+
+<ParamField body="title" type="string" required>
+  Maintenance title.
+</ParamField>
+
+<ParamField body="start_date_time" type="integer" required>
+  UTC Unix timestamp (seconds) for the first window. Truncated to minute start.
+</ParamField>
+
+<ParamField body="rrule" type="string" required>
+  A valid iCalendar RRULE string (without `DTSTART`). For a one-time window use `FREQ=DAILY;COUNT=1`.
+</ParamField>
+
+<ParamField body="duration_seconds" type="integer" required>
+  Length of each window in seconds. Must be greater than `0`.
+</ParamField>
+
+<ParamField body="description" type="string | null">
+  Optional description.
+</ParamField>
+
+<ParamField body="monitors" type="array">
+  Monitors to link to this maintenance.
+  <Expandable title="monitor object">
+    <ParamField body="monitor_tag" type="string" required>
+      Tag of the monitor to link.
+    </ParamField>
+    <ParamField body="impact" type="string">
+      Status to report during the window. One of `UP`, `DOWN`, `DEGRADED`, `MAINTENANCE`. Defaults to `MAINTENANCE`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Response** `201`
+
+```json
+{
+  "maintenance": {
+    "id": 2,
+    "title": "Nightly Deploy",
+    "description": null,
+    "start_date_time": 1737082800,
+    "rrule": "FREQ=DAILY;BYHOUR=2;BYMINUTE=0",
+    "duration_seconds": 1800,
+    "status": "ACTIVE",
+    "monitors": [
+      { "monitor_tag": "api-gateway", "impact": "MAINTENANCE" }
+    ],
+    "created_at": "2026-01-15T00:00:00.000Z",
+    "updated_at": "2026-01-15T00:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl (recurring)
+curl -X POST https://your-kener-instance.com/api/v4/maintenances \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Nightly Deploy",
+    "start_date_time": 1737082800,
+    "rrule": "FREQ=DAILY;BYHOUR=2;BYMINUTE=0",
+    "duration_seconds": 1800,
+    "monitors": [
+      { "monitor_tag": "api-gateway", "impact": "MAINTENANCE" }
+    ]
+  }'
+```
+
+```bash curl (one-time)
+curl -X POST https://your-kener-instance.com/api/v4/maintenances \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Emergency Patching",
+    "start_date_time": 1737100000,
+    "rrule": "FREQ=DAILY;COUNT=1",
+    "duration_seconds": 7200
+  }'
+```
+
+</CodeGroup>
+
+<Note>
+  The `rrule` value must be a valid iCalendar RRULE property value — do not include the `RRULE:` prefix or `DTSTART`. Examples: `FREQ=WEEKLY;BYDAY=SA,SU`, `FREQ=MONTHLY;BYMONTHDAY=1`.
+</Note>
+
+---
+
+## Update a maintenance
+
+Performs a partial update. Updating `rrule`, `start_date_time`, or `duration_seconds` regenerates future scheduled events automatically. Updating `monitors` replaces the entire monitor list.
+
+```
+PATCH /api/v4/maintenances/{maintenance_id}
+```
+
+**Path parameters**
+
+<ParamField path="maintenance_id" type="integer" required>
+  Numeric ID of the maintenance.
+</ParamField>
+
+<ParamField body="title" type="string">
+  New title.
+</ParamField>
+
+<ParamField body="description" type="string | null">
+  New description.
+</ParamField>
+
+<ParamField body="start_date_time" type="integer">
+  New start timestamp (UTC seconds).
+</ParamField>
+
+<ParamField body="rrule" type="string">
+  New RRULE string.
+</ParamField>
+
+<ParamField body="duration_seconds" type="integer">
+  New window duration in seconds. Must be greater than `0`.
+</ParamField>
+
+<ParamField body="status" type="string">
+  `ACTIVE` or `INACTIVE`.
+</ParamField>
+
+<ParamField body="monitors" type="array">
+  Replacement monitor list. Replaces all existing monitor associations.
+  <Expandable title="monitor object">
+    <ParamField body="monitor_tag" type="string" required>
+      Tag of the monitor.
+    </ParamField>
+    <ParamField body="impact" type="string">
+      Impact. One of `UP`, `DOWN`, `DEGRADED`, `MAINTENANCE`. Defaults to `MAINTENANCE`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "maintenance": {
+    "id": 1,
+    "title": "Weekly Database Backup",
+    "description": "Updated window duration.",
+    "start_date_time": 1737010800,
+    "rrule": "FREQ=WEEKLY;BYDAY=SU",
+    "duration_seconds": 7200,
+    "status": "ACTIVE",
+    "monitors": [
+      { "monitor_tag": "database", "impact": "MAINTENANCE" }
+    ],
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-15T14:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X PATCH https://your-kener-instance.com/api/v4/maintenances/1 \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "duration_seconds": 7200,
+    "status": "INACTIVE"
+  }'
+```
+
+</CodeGroup>
+
+---
+
+## Delete a maintenance
+
+Permanently deletes a maintenance, all its scheduled events, and all monitor associations.
+
+```
+DELETE /api/v4/maintenances/{maintenance_id}
+```
+
+**Path parameters**
+
+<ParamField path="maintenance_id" type="integer" required>
+  Numeric ID of the maintenance to delete.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "message": "Maintenance with id '1' deleted successfully"
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X DELETE https://your-kener-instance.com/api/v4/maintenances/1 \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Maintenance event object
+
+Each maintenance generates one or more events — one per scheduled occurrence.
+
+<ResponseField name="id" type="integer">
+  Unique numeric identifier for the event.
+</ResponseField>
+
+<ResponseField name="maintenance_id" type="integer">
+  ID of the parent maintenance.
+</ResponseField>
+
+<ResponseField name="start_date_time" type="integer">
+  UTC Unix timestamp (seconds) when this event starts.
+</ResponseField>
+
+<ResponseField name="end_date_time" type="integer">
+  UTC Unix timestamp (seconds) when this event ends.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the event. One of `SCHEDULED`, `READY`, `ONGOING`, `COMPLETED`, `CANCELLED`. `READY` means the event starts within the next few minutes and the system is preparing to activate it.
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 creation timestamp.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  ISO 8601 last-updated timestamp.
+</ResponseField>
+
+---
+
+## List events for a maintenance
+
+Returns paginated events for a specific maintenance.
+
+```
+GET /api/v4/maintenances/{maintenance_id}/events
+```
+
+**Path parameters**
+
+<ParamField path="maintenance_id" type="integer" required>
+  Numeric ID of the maintenance.
+</ParamField>
+
+**Query parameters**
+
+<ParamField query="page" type="integer">
+  Page number (1-indexed). Defaults to `1`.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Results per page. Defaults to `20`, maximum `100`.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "events": [
+    {
+      "id": 5,
+      "maintenance_id": 1,
+      "start_date_time": 1737010800,
+      "end_date_time": 1737014400,
+      "status": "SCHEDULED",
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "updated_at": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "page": 1,
+  "limit": 20
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/maintenances/1/events \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Get a maintenance event
+
+```
+GET /api/v4/maintenances/{maintenance_id}/events/{event_id}
+```
+
+**Path parameters**
+
+<ParamField path="maintenance_id" type="integer" required>
+  Numeric ID of the maintenance.
+</ParamField>
+
+<ParamField path="event_id" type="integer" required>
+  Numeric ID of the event.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "event": {
+    "id": 5,
+    "maintenance_id": 1,
+    "start_date_time": 1737010800,
+    "end_date_time": 1737014400,
+    "status": "SCHEDULED",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/maintenances/1/events/5 \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Update a maintenance event
+
+Overrides the start and end times of a specific event. Both fields are required.
+
+```
+PATCH /api/v4/maintenances/{maintenance_id}/events/{event_id}
+```
+
+**Path parameters**
+
+<ParamField path="maintenance_id" type="integer" required>
+  Numeric ID of the maintenance.
+</ParamField>
+
+<ParamField path="event_id" type="integer" required>
+  Numeric ID of the event to update.
+</ParamField>
+
+<ParamField body="start_date_time" type="integer" required>
+  New start timestamp (UTC seconds).
+</ParamField>
+
+<ParamField body="end_date_time" type="integer" required>
+  New end timestamp (UTC seconds). Must be after `start_date_time`.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "event": {
+    "id": 5,
+    "maintenance_id": 1,
+    "start_date_time": 1737012000,
+    "end_date_time": 1737015600,
+    "status": "SCHEDULED",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-15T15:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X PATCH https://your-kener-instance.com/api/v4/maintenances/1/events/5 \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "start_date_time": 1737012000,
+    "end_date_time": 1737015600
+  }'
+```
+
+</CodeGroup>
+
+---
+
+## Delete a maintenance event
+
+Deletes a specific event. The parent maintenance and its other events are unaffected.
+
+```
+DELETE /api/v4/maintenances/{maintenance_id}/events/{event_id}
+```
+
+**Path parameters**
+
+<ParamField path="maintenance_id" type="integer" required>
+  Numeric ID of the maintenance.
+</ParamField>
+
+<ParamField path="event_id" type="integer" required>
+  Numeric ID of the event to delete.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "message": "Event with id '5' deleted successfully"
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X DELETE https://your-kener-instance.com/api/v4/maintenances/1/events/5 \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## List all maintenance events (global)
+
+Returns a paginated, cross-maintenance list of events with full maintenance details embedded. Useful for building maintenance calendars or feed integrations.
+
+```
+GET /api/v4/maintenances/events
+```
+
+**Query parameters**
+
+<ParamField query="page" type="integer">
+  Page number (1-indexed). Defaults to `1`.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Results per page. Defaults to `20`, maximum `100`.
+</ParamField>
+
+<ParamField query="event_start_date_time" type="integer">
+  Return events starting at or after this UTC Unix timestamp. Defaults to the current time.
+</ParamField>
+
+<ParamField query="event_status" type="string">
+  Filter by event status: `SCHEDULED`, `ONGOING`, `COMPLETED`, `CANCELLED`, or `READY`.
+</ParamField>
+
+<ParamField query="monitors" type="string">
+  Comma-separated monitor tags. Return events from maintenances linked to any of these monitors.
+</ParamField>
+
+<ParamField query="maintenance_id" type="integer">
+  Filter to events from a specific maintenance.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "events": [
+    {
+      "maintenance_id": 1,
+      "event_id": 5,
+      "event_start_date_time": 1737010800,
+      "event_end_date_time": 1737014400,
+      "event_status": "SCHEDULED",
+      "maintenance_title": "Weekly Database Backup",
+      "maintenance_description": null,
+      "maintenance_status": "ACTIVE",
+      "maintenance_rrule": "FREQ=WEEKLY;BYDAY=SU",
+      "maintenance_duration_seconds": 3600,
+      "monitors": [
+        { "monitor_tag": "database", "impact": "MAINTENANCE" }
+      ]
+    }
+  ],
+  "page": 1,
+  "limit": 20,
+  "total": 1
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET "https://your-kener-instance.com/api/v4/maintenances/events?event_status=SCHEDULED" \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>

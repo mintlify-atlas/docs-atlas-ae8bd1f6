@@ -1,0 +1,133 @@
+---
+title: 'Heartbeat monitor'
+description: 'Passive push-based monitoring — your service calls a Kener URL to signal it is alive.'
+---
+
+Heartbeat monitors are passive. Instead of Kener reaching out to your service, **your service calls Kener**. If the signal stops arriving, Kener transitions the monitor to DEGRADED or DOWN.
+
+Use heartbeat monitors for cron jobs, background workers, data pipelines, or any process that runs on a schedule and needs to prove it completed successfully.
+
+## Heartbeat endpoint
+
+Your service sends a `GET` or `POST` request to:
+
+```
+/ext/heartbeat/{tag}:{secret}
+```
+
+Where `{tag}` is the monitor tag and `{secret}` is the `secretString` set in the monitor's configuration.
+
+**Example:**
+
+```bash
+curl -s "https://your-kener-host/ext/heartbeat/nightly-backup:my-secret-string"
+```
+
+## Configuration fields
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `degradedRemainingMinutes` | `number` | `5` | Minutes since last heartbeat before status becomes DEGRADED |
+| `downRemainingMinutes` | `number` | `10` | Minutes since last heartbeat before status becomes DOWN |
+| `secretString` | `string` | — | Required — shared secret in the heartbeat URL |
+
+<Warning>
+`downRemainingMinutes` must be greater than `degradedRemainingMinutes`. Set both thresholds to match your expected signal interval plus a reasonable buffer.
+</Warning>
+
+## Status logic
+
+| Condition | Status |
+|---|---|
+| No heartbeat ever received | **NO_DATA** |
+| `elapsed > downRemainingMinutes` | **DOWN** |
+| `elapsed > degradedRemainingMinutes` | **DEGRADED** |
+| otherwise | **UP** |
+
+Latency is recorded as the elapsed time in milliseconds since the last heartbeat.
+
+## Sending heartbeats from your services
+
+<Tabs>
+  <Tab title="curl (cron job)">
+Run this at the end of your cron script. Kener only receives a signal when the job succeeds:
+
+```bash
+#!/bin/bash
+# Run your job
+/path/to/job.sh
+
+# Signal Kener on success
+curl -s "https://your-kener-host/ext/heartbeat/nightly-backup:my-secret-string"
+```
+
+Example cron entry (runs every 5 minutes):
+
+```
+*/5 * * * * /path/to/job.sh && curl -s "https://your-kener-host/ext/heartbeat/my-job:my-secret"
+```
+  </Tab>
+  <Tab title="Node.js">
+```javascript
+const axios = require('axios');
+
+async function runJob() {
+  // Your job logic here
+  await doWork();
+
+  // Signal Kener on completion
+  await axios.get('https://your-kener-host/ext/heartbeat/my-job:my-secret');
+}
+
+runJob().catch(console.error);
+```
+  </Tab>
+  <Tab title="Python">
+```python
+import requests
+
+def run_job():
+    # Your job logic here
+    do_work()
+
+    # Signal Kener on completion
+    requests.get('https://your-kener-host/ext/heartbeat/my-job:my-secret')
+
+run_job()
+```
+  </Tab>
+</Tabs>
+
+## What happens when heartbeats stop
+
+When no heartbeat arrives within the configured windows:
+
+1. After `degradedRemainingMinutes` without a signal → status becomes **DEGRADED**
+2. After `downRemainingMinutes` without a signal → status becomes **DOWN**
+3. Any configured alert rules fire (email, webhook, Slack, Discord)
+4. An incident can be auto-created if alert rules are configured to do so
+
+When the next heartbeat arrives, the status returns to **UP** on the monitor's next scheduled evaluation.
+
+## Example configuration
+
+```json
+{
+    "type": "HEARTBEAT",
+    "type_data": {
+        "degradedRemainingMinutes": 5,
+        "downRemainingMinutes": 10,
+        "secretString": "my-secret-string"
+    }
+}
+```
+
+<Tip>
+Set `degradedRemainingMinutes` to slightly longer than your job's normal run interval. For example, if a job runs every 5 minutes, set `degradedRemainingMinutes` to `7` and `downRemainingMinutes` to `15` to absorb occasional slowdowns without false alerts.
+</Tip>
+
+## Troubleshooting
+
+- **Always NO_DATA**: the heartbeat endpoint has never been called, or the `tag:secret` in the URL is wrong
+- **Always DOWN or DEGRADED**: thresholds are too low for the actual job interval — increase both values
+- **Signal received but state stays stale**: check that the Kener cron is running (the heartbeat is evaluated on the monitor's own cron schedule, not in real time)

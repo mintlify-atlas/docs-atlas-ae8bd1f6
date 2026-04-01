@@ -1,0 +1,133 @@
+---
+title: "Environment variables"
+description: "Complete reference for all Kener environment variables, including database, email, Redis, and advanced configuration."
+---
+
+Set these variables in your `docker-compose.yml` environment block, in a `.env` file at the project root, or as system environment variables.
+
+## Required
+
+These three variables must be set before Kener starts for the first time.
+
+| Variable | Description |
+|---|---|
+| `KENER_SECRET_KEY` | Secret key used for session signing and CSRF protection. Generate with `openssl rand -base64 32`. **Never reuse across instances.** |
+| `ORIGIN` | The public URL of your Kener instance (e.g. `http://localhost:3000` or `https://status.example.com`). Used for CSRF validation. For subpath deployments, set this to the root origin, not the subpath. |
+| `REDIS_URL` | Redis connection string (e.g. `redis://localhost:6379`). Kener uses Redis for BullMQ queues, caching, and the scheduler. |
+
+## App configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3000` | Port the Node.js server listens on. |
+| `KENER_BASE_PATH` | _(empty)_ | Set to a subpath (e.g. `/status`) when deploying Kener at a non-root URL. Requires the matching subpath image tag (e.g. `latest-status`). |
+| `NODE_ENV` | `production` | Already set in the Docker image. Do not change unless you know what you're doing. |
+| `BODY_SIZE_LIMIT` | `3M` | Maximum request body size for SvelteKit's adapter-node. Increase if you need to upload larger images. |
+
+## Database
+
+Kener supports SQLite (default), PostgreSQL, and MySQL via a single `DATABASE_URL` variable.
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `sqlite://./database/kener.sqlite.db` | Database connection string. Omit to use the default SQLite path. |
+
+**Connection string formats:**
+
+```env
+# SQLite (default — no extra service required)
+DATABASE_URL=sqlite://./database/kener.sqlite.db
+
+# PostgreSQL
+DATABASE_URL=postgresql://user:password@postgres:5432/kener
+
+# MySQL / MariaDB
+DATABASE_URL=mysql://user:password@mysql:3306/kener
+```
+
+<Tip>
+  For production, use PostgreSQL or MySQL with a dedicated database service and persistent volume. See [Docker deployment](/deployment/docker) for example Compose configuration.
+</Tip>
+
+## Email
+
+Kener supports two email providers. Set one or the other — not both.
+
+### Resend
+
+| Variable | Description |
+|---|---|
+| `RESEND_API_KEY` | API key from your [Resend](https://resend.com) account. |
+| `RESEND_SENDER_EMAIL` | Sender address for outgoing emails (e.g. `alerts@example.com`). |
+
+### SMTP
+
+| Variable | Default | Description |
+|---|---|---|
+| `SMTP_HOST` | — | SMTP server hostname (e.g. `smtp.mailgun.org`). |
+| `SMTP_PORT` | — | SMTP port (typically `587` for TLS, `465` for SSL, `25` for unencrypted). |
+| `SMTP_USER` | — | SMTP authentication username. |
+| `SMTP_PASSWORD` | — | SMTP authentication password. |
+| `SMTP_SENDER` | — | Sender address for outgoing emails. |
+| `SMTP_SECURE` | `0` | Set to `1` to enable TLS. Set to `0` for STARTTLS or unencrypted. |
+
+## Redis
+
+| Variable | Description |
+|---|---|
+| `REDIS_URL` | Redis connection string (also listed under [Required](#required)). Supports standard `redis://` and `rediss://` (TLS) formats. |
+
+**Examples:**
+
+```env
+# Local / Docker Compose
+REDIS_URL=redis://redis:6379
+
+# Remote with password
+REDIS_URL=redis://:yourpassword@redis.example.com:6379
+
+# TLS
+REDIS_URL=rediss://:yourpassword@redis.example.com:6380
+```
+
+## Minimal example
+
+The smallest valid `.env` to start Kener:
+
+```env
+KENER_SECRET_KEY=some_secret_key_for_kener
+REDIS_URL=redis://localhost:6379
+ORIGIN=http://localhost:3000
+```
+
+## Full example (Docker Compose)
+
+```yaml
+environment:
+  # Required
+  KENER_SECRET_KEY: replace_me_with_a_random_string
+  ORIGIN: http://localhost:3000
+  REDIS_URL: redis://redis:6379
+
+  # Database (default: SQLite)
+  # DATABASE_URL: sqlite://./database/kener.sqlite.db
+  # DATABASE_URL: postgresql://user:password@postgres:5432/kener
+  # DATABASE_URL: mysql://user:password@mysql:3306/kener
+
+  # Email — Resend
+  # RESEND_API_KEY: re_xxxxxxxxxxxx
+  # RESEND_SENDER_EMAIL: alerts@example.com
+
+  # Email — SMTP
+  # SMTP_HOST: smtp.mailgun.org
+  # SMTP_PORT: 587
+  # SMTP_USER: postmaster@example.com
+  # SMTP_PASSWORD: your_smtp_password
+  # SMTP_SENDER: alerts@example.com
+  # SMTP_SECURE: 0
+
+  # Advanced
+  # PORT: 3000
+  # KENER_BASE_PATH:
+  # BODY_SIZE_LIMIT: 3M
+```

@@ -1,0 +1,159 @@
+---
+title: "Email notifications"
+description: "Configure SMTP or Resend to send alert emails, then create an email trigger."
+---
+
+Kener supports two email delivery backends: a standard SMTP server and the [Resend](https://resend.com) transactional email API. Both are configured via environment variables. You only need one.
+
+<Note>
+  Email delivery is shared across all email triggers you create. The SMTP or Resend credentials set via environment variables are used globally — they are not stored per trigger.
+</Note>
+
+## Option 1: SMTP
+
+Set the following environment variables. All six are required for SMTP to work.
+
+| Variable | Description |
+|---|---|
+| `SMTP_HOST` | Hostname of your SMTP server (e.g. `smtp.mailgun.org`) |
+| `SMTP_PORT` | SMTP port — typically `587` (STARTTLS) or `465` (TLS) |
+| `SMTP_USER` | SMTP login username. Use `-` to send without authentication. |
+| `SMTP_PASSWORD` | SMTP login password. Use `-` to send without authentication. |
+| `SMTP_SENDER` | Default sender address (e.g. `alerts@example.com`) |
+| `SMTP_SECURE` | `1` to use TLS (port 465). `0` for STARTTLS or plain (port 587). |
+
+Example in `docker-compose.yml`:
+
+```yaml
+environment:
+  SMTP_HOST: smtp.mailgun.org
+  SMTP_PORT: 587
+  SMTP_USER: postmaster@mg.example.com
+  SMTP_PASSWORD: your-smtp-password
+  SMTP_SENDER: alerts@example.com
+  SMTP_SECURE: 0
+```
+
+<Tip>
+  For SMTP servers that don't require authentication (internal mail relays), set both `SMTP_USER` and `SMTP_PASSWORD` to `-`. Kener omits the `auth` field from the transport configuration when it detects `-`.
+</Tip>
+
+### TLS behaviour
+
+When `SMTP_SECURE` is `0`, Kener sets `tls.rejectUnauthorized: false` to allow self-signed certificates on internal mail servers. When `SMTP_SECURE` is `1`, certificate verification is enforced.
+
+## Option 2: Resend API
+
+[Resend](https://resend.com) is a developer-focused email API. If both SMTP and Resend variables are present, Kener uses Resend.
+
+| Variable | Description |
+|---|---|
+| `RESEND_API_KEY` | Your Resend API key (starts with `re_`) |
+| `RESEND_SENDER_EMAIL` | Verified sender address in your Resend account |
+
+Example in `docker-compose.yml`:
+
+```yaml
+environment:
+  RESEND_API_KEY: re_xxxxxxxxxxxxxxxxxxxx
+  RESEND_SENDER_EMAIL: alerts@example.com
+```
+
+<Warning>
+  The sender address must be verified in your Resend account (or come from a verified domain). Resend will reject sends from unverified addresses.
+</Warning>
+
+## Create an email trigger
+
+Once email delivery is configured, create a trigger to use it.
+
+<Steps>
+  <Step title="Go to Triggers">
+    In the admin dashboard, navigate to **Triggers** and click **New Trigger**.
+  </Step>
+
+  <Step title="Select Email as the trigger type">
+    In the **Trigger Type** dropdown, choose **email**.
+
+    If Kener detects that neither SMTP nor Resend is configured, a warning banner appears at the top of the form. Email delivery will fail until the environment variables are set and Kener is restarted.
+  </Step>
+
+  <Step title="Enter recipients">
+    In the **To** field, enter one or more recipient email addresses separated by commas:
+
+    ```
+    alice@example.com, bob@example.com
+    ```
+  </Step>
+
+  <Step title="Enter the sender">
+    In the **From** field, use the `Name <email@example.com>` format:
+
+    ```
+    Kener Alerts <alerts@example.com>
+    ```
+
+    <Note>
+      If the sender address here differs from `SMTP_SENDER` / `RESEND_SENDER_EMAIL`, the per-trigger sender takes precedence. Ensure the address is authorized by your email provider.
+    </Note>
+  </Step>
+
+  <Step title="Customise the HTML template (optional)">
+    The default email template renders a styled HTML table with all alert details. You can replace it entirely with your own HTML in the **Custom HTML Template** editor.
+
+    Available Mustache variables:
+
+    | Variable | Description |
+    |---|---|
+    | `site_name` | Display name of the Kener site |
+    | `site_url` | Public URL of the Kener instance |
+    | `site_logo_url` | Absolute URL to the logo |
+    | `alert_name` | Human-readable alert label |
+    | `alert_status` | `TRIGGERED` or `RESOLVED` |
+    | `alert_severity` | `WARNING` or `CRITICAL` |
+    | `alert_for` | `STATUS`, `LATENCY`, or `UPTIME` |
+    | `alert_value` | Threshold value |
+    | `alert_message` | Alert description |
+    | `alert_id` | Unique alert ID |
+    | `alert_timestamp` | ISO 8601 timestamp |
+    | `alert_failure_threshold` | Configured failure threshold |
+    | `alert_success_threshold` | Configured success threshold |
+    | `alert_cta_url` | Link to the monitor page |
+    | `alert_cta_text` | CTA button label |
+    | `alert_incident_url` | Incident URL (if incident was created) |
+    | `is_triggered` | `true` when alert fired |
+    | `is_resolved` | `true` when alert cleared |
+    | `colors_up` | Hex color for UP status |
+    | `colors_down` | Hex color for DOWN status |
+    | `colors_degraded` | Hex color for DEGRADED status |
+    | `colors_maintenance` | Hex color for MAINTENANCE status |
+
+    The default subject is `{{alert_name}}`. You can override this in the **Email Subject** field.
+  </Step>
+
+  <Step title="Save and test">
+    Click **Create Trigger**. After saving, click **Test Trigger** to send a sample notification to the configured recipients.
+  </Step>
+</Steps>
+
+## Default email template
+
+The built-in HTML template renders the following information in a styled email:
+
+```html
+Subject: {{alert_name}}
+```
+
+The body includes:
+
+- Logo and site link at the top
+- A colored badge showing `alert_status` (uses `colors_down` for TRIGGERED, `colors_up` for RESOLVED)
+- A table with: Alert ID, Status, Timestamp, Severity, Alert Type
+- A metrics box with: Alert Value, Failure Threshold, Success Threshold
+- The alert message text
+- A **View Incident** button (conditionally rendered when `alert_incident_url` is set)
+- A CTA button linking to the monitor page (`alert_cta_url`)
+
+## Attach the trigger to an alert config
+
+Email triggers work the same as other triggers. Go to **Alerts → Create Alert**, configure the condition and thresholds, and select your email trigger from the **Notification Triggers** list. See [alert triggers](/notifications/triggers#creating-an-alert-config) for the full steps.

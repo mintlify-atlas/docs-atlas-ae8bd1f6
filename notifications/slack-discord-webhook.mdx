@@ -1,0 +1,310 @@
+---
+title: "Slack, Discord & webhook notifications"
+description: "Send alert notifications to Slack channels, Discord servers, or any HTTP endpoint."
+---
+
+Kener can post alert notifications to Slack, Discord, and arbitrary HTTP endpoints. All three use the same delivery mechanism — an HTTP POST to a URL — but each has its own default payload format.
+
+<Tabs>
+  <Tab title="Slack">
+
+## Slack setup
+
+Kener posts to Slack using an [Incoming Webhook](https://api.slack.com/messaging/webhooks). Each webhook URL is tied to a specific channel.
+
+<Steps>
+  <Step title="Create a Slack app and enable incoming webhooks">
+    1. Go to [api.slack.com/apps](https://api.slack.com/apps) and click **Create New App → From scratch**.
+    2. Name the app (e.g. "Kener Alerts") and pick a workspace.
+    3. In the left sidebar, click **Incoming Webhooks** and toggle **Activate Incoming Webhooks** on.
+  </Step>
+
+  <Step title="Add a webhook to a channel">
+    Click **Add New Webhook to Workspace**, pick the channel you want alerts in, and click **Allow**.
+
+    Copy the webhook URL — it looks like:
+
+    ```
+    https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+    ```
+  </Step>
+
+  <Step title="Create a Slack trigger in Kener">
+    1. In the Kener admin dashboard, go to **Triggers → New Trigger**.
+    2. Set **Trigger Type** to **slack**.
+    3. Paste the webhook URL into the **URL** field.
+    4. Give the trigger a **Name** and click **Create Trigger**.
+  </Step>
+
+  <Step title="Test the trigger">
+    After saving, click **Test Trigger**. Kener sends a sample `TRIGGERED` notification to the channel.
+  </Step>
+</Steps>
+
+### Default Slack payload
+
+Kener uses Slack's [Block Kit](https://api.slack.com/block-kit) format by default:
+
+```json
+{
+  "blocks": [
+    {
+      "type": "header",
+      "text": {
+        "type": "plain_text",
+        "text": "{{#is_triggered}}🚨 Alert Triggered{{/is_triggered}}{{#is_resolved}}✅ Alert Resolved{{/is_resolved}}",
+        "emoji": true
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*{{alert_name}}*"
+      }
+    },
+    {
+      "type": "divider"
+    },
+    {
+      "type": "section",
+      "fields": [
+        { "type": "mrkdwn", "text": "*Status:*\n{{alert_status}}" },
+        { "type": "mrkdwn", "text": "*Severity:*\n{{alert_severity}}" },
+        { "type": "mrkdwn", "text": "*Alert Type:*\n{{alert_for}}" },
+        { "type": "mrkdwn", "text": "*Alert Value:*\n{{alert_value}}" },
+        { "type": "mrkdwn", "text": "*Failure Threshold:*\n{{alert_failure_threshold}}" },
+        { "type": "mrkdwn", "text": "*Success Threshold:*\n{{alert_success_threshold}}" }
+      ]
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*Message:*\n{{alert_message}}"
+      }
+    },
+    {
+      "type": "context",
+      "elements": [
+        { "type": "mrkdwn", "text": "🕐 *Time:* {{alert_timestamp}}" },
+        { "type": "mrkdwn", "text": "🆔 *Alert ID:* {{alert_id}}" }
+      ]
+    },
+    {
+      "type": "divider"
+    },
+    {
+      "type": "actions",
+      "elements": [
+        {
+          "type": "button",
+          "text": { "type": "plain_text", "text": "{{alert_cta_text}}", "emoji": true },
+          "url": "{{alert_cta_url}}",
+          "style": "{{#is_triggered}}danger{{/is_triggered}}{{#is_resolved}}primary{{/is_resolved}}"
+        }
+      ]
+    },
+    {
+      "type": "context",
+      "elements": [
+        { "type": "mrkdwn", "text": "Sent from *{{site_name}}* monitoring system" }
+      ]
+    }
+  ]
+}
+```
+
+You can replace this with your own Block Kit JSON in the **Custom Slack Payload** field when editing the trigger.
+
+  </Tab>
+  <Tab title="Discord">
+
+## Discord setup
+
+Kener posts to Discord using [channel webhooks](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks).
+
+<Steps>
+  <Step title="Create a Discord webhook">
+    1. Open your Discord server. Right-click the channel you want alerts in and click **Edit Channel**.
+    2. Go to **Integrations → Webhooks → New Webhook**.
+    3. Give it a name (e.g. "Kener") and click **Copy Webhook URL**.
+
+    The URL looks like:
+
+    ```
+    https://discord.com/api/webhooks/1234567890/xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    ```
+  </Step>
+
+  <Step title="Create a Discord trigger in Kener">
+    1. In the Kener admin dashboard, go to **Triggers → New Trigger**.
+    2. Set **Trigger Type** to **discord**.
+    3. Paste the webhook URL into the **URL** field.
+    4. Give the trigger a **Name** and click **Create Trigger**.
+  </Step>
+
+  <Step title="Test the trigger">
+    After saving, click **Test Trigger** to send a sample message to the Discord channel.
+  </Step>
+</Steps>
+
+### Default Discord payload
+
+Kener posts a rich embed message by default:
+
+```json
+{
+  "username": "{{site_name}}",
+  "avatar_url": "{{site_logo_url}}",
+  "content": "{{#is_triggered}}🚨 **Alert Triggered**{{/is_triggered}}{{#is_resolved}}✅ **Alert Resolved**{{/is_resolved}}",
+  "embeds": [
+    {
+      "title": "{{alert_name}}",
+      "url": "{{alert_cta_url}}",
+      "color": "{{#is_triggered}}15158332{{/is_triggered}}{{#is_resolved}}3066993{{/is_resolved}}",
+      "fields": [
+        { "name": "📊 Status",             "value": "{{alert_status}}",             "inline": true },
+        { "name": "⚠️ Severity",           "value": "{{alert_severity}}",           "inline": true },
+        { "name": "📋 Alert Type",         "value": "{{alert_for}}",                "inline": true },
+        { "name": "📈 Alert Value",        "value": "{{alert_value}}",              "inline": true },
+        { "name": "🔻 Failure Threshold",  "value": "{{alert_failure_threshold}}", "inline": true },
+        { "name": "🔺 Success Threshold",  "value": "{{alert_success_threshold}}", "inline": true },
+        { "name": "📝 Message",            "value": "{{alert_message}}",            "inline": false }
+      ],
+      "footer": {
+        "text": "{{alert_cta_text}} | Alert ID: {{alert_id}} | {{site_name}} Monitoring",
+        "icon_url": "{{site_logo_url}}"
+      },
+      "timestamp": "{{alert_timestamp}}"
+    }
+  ]
+}
+```
+
+The `color` field uses Discord's integer color format: `15158332` (red) for TRIGGERED and `3066993` (green) for RESOLVED.
+
+You can replace this with your own JSON in the **Custom Discord Payload** field.
+
+  </Tab>
+  <Tab title="Webhook">
+
+## Custom webhook setup
+
+A webhook trigger sends an HTTP POST to any URL with a JSON body. Use this for PagerDuty, Opsgenie, custom scripts, or any service that accepts webhooks.
+
+<Steps>
+  <Step title="Prepare your endpoint">
+    Your endpoint must accept HTTP POST requests with `Content-Type: application/json`. It should return a `2xx` status code on success.
+  </Step>
+
+  <Step title="Create a webhook trigger in Kener">
+    1. In the admin dashboard, go to **Triggers → New Trigger**.
+    2. Set **Trigger Type** to **webhook**.
+    3. Enter the destination URL.
+    4. Give the trigger a **Name** and click **Create Trigger**.
+  </Step>
+
+  <Step title="Add authentication headers (optional)">
+    Under **Headers**, click **Add Header** for each header your endpoint requires. Common examples:
+
+    | Key | Value |
+    |---|---|
+    | `Authorization` | `Bearer your-token` |
+    | `X-API-Key` | `your-api-key` |
+    | `X-Custom-Header` | `value` |
+
+    To keep secrets out of the database, reference environment variables:
+
+    ```
+    Authorization: Bearer {{ENV_WEBHOOK_TOKEN}}
+    ```
+
+    Kener resolves `{{ENV_...}}` patterns against `process.env` at send time.
+  </Step>
+
+  <Step title="Customise the payload (optional)">
+    The default JSON payload (see below) covers all alert fields. You can replace it with your own Mustache template in the **Custom Webhook Body** field.
+  </Step>
+
+  <Step title="Test the trigger">
+    After saving, click **Test Trigger** to POST a sample payload to your endpoint.
+  </Step>
+</Steps>
+
+### Default webhook payload
+
+```json
+{
+  "alert_id": {{alert_id}},
+  "alert_name": "{{alert_name}}",
+  "alert_for": "{{alert_for}}",
+  "alert_value": "{{alert_value}}",
+  "alert_status": "{{alert_status}}",
+  "alert_severity": "{{alert_severity}}",
+  "alert_message": "{{alert_message}}",
+  "alert_source": "{{alert_source}}",
+  "alert_timestamp": "{{alert_timestamp}}",
+  "alert_cta_url": "{{alert_cta_url}}",
+  "alert_cta_text": "{{alert_cta_text}}",
+  "alert_incident_id": {{#alert_incident_id}}{{alert_incident_id}}{{/alert_incident_id}}{{^alert_incident_id}}null{{/alert_incident_id}},
+  "alert_incident_url": {{#alert_incident_url}}"{{alert_incident_url}}"{{/alert_incident_url}}{{^alert_incident_url}}null{{/alert_incident_url}},
+  "alert_failure_threshold": {{alert_failure_threshold}},
+  "alert_success_threshold": {{alert_success_threshold}},
+  "is_resolved": {{is_resolved}},
+  "is_triggered": {{is_triggered}},
+  "site_url": "{{site_url}}",
+  "site_name": "{{site_name}}",
+  "site_logo_url": "{{site_logo_url}}",
+  "colors_up": "{{colors_up}}",
+  "colors_down": "{{colors_down}}",
+  "colors_degraded": "{{colors_degraded}}",
+  "colors_maintenance": "{{colors_maintenance}}"
+}
+```
+
+`alert_incident_id` and `alert_incident_url` are `null` when no incident was created for the alert.
+
+### Headers sent by Kener
+
+Kener always includes these default headers. Custom headers you add override them if the key matches:
+
+| Header | Value |
+|---|---|
+| `user-agent` | `Kener/<version>` |
+| `accept` | `application/json` |
+| `content-type` | `application/json` |
+
+  </Tab>
+</Tabs>
+
+## Attach a trigger to an alert config
+
+All three channel types attach to alert configs the same way:
+
+1. Go to **Alerts → Create Alert** (or edit an existing one).
+2. Configure the monitor, condition, and thresholds.
+3. Under **Notification Triggers**, check the trigger(s) you want to notify.
+4. Click **Create Alert**.
+
+See [alert triggers](/notifications/triggers#creating-an-alert-config) for the full steps and field reference.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Test trigger succeeds but alerts never fire">
+    Check that the alert config is **Active** (the toggle on the alerts list). Also confirm that the monitor has reached the `failure_threshold` number of consecutive failures — Kener does not send a notification on the first failure if the threshold is greater than 1.
+  </Accordion>
+
+  <Accordion title="Slack returns 400 or 'invalid_payload'">
+    The payload is not valid Block Kit JSON. Check that your custom template is valid JSON and that Mustache conditionals don't break the structure. Test with the default template first to confirm the webhook URL is correct.
+  </Accordion>
+
+  <Accordion title="Discord returns 401 Unauthorized">
+    The webhook URL is invalid or has been deleted. Go back to Discord server settings, regenerate the webhook, and update the trigger URL.
+  </Accordion>
+
+  <Accordion title="Webhook endpoint returns non-2xx">
+    Kener logs the response status and body to the console when delivery fails. Check your server logs. Common causes: missing authentication header, wrong content type expected by the endpoint, or payload schema mismatch.
+  </Accordion>
+</AccordionGroup>

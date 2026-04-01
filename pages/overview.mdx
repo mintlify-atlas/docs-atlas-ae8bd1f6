@@ -1,0 +1,90 @@
+---
+title: "Status Pages"
+description: "Create and manage public-facing status pages that display monitor health at a glance."
+---
+
+A status page is a public URL that shows the live status of one or more monitors. Kener supports multiple status pages from a single instance — each page has its own path, its own set of monitors, and its own branding.
+
+## How pages work
+
+Each page maps to a URL path. The **home page** lives at `/` (empty path) and cannot be deleted. Every other page you create is accessible at `/<page-path>`.
+
+| Page path | Public URL |
+|-----------|------------|
+| *(empty)* | `https://status.example.com/` |
+| `infrastructure` | `https://status.example.com/infrastructure` |
+| `api-services` | `https://status.example.com/api-services` |
+
+Page paths are automatically normalized: lowercased, spaces replaced with hyphens, and non-alphanumeric characters (except `-` and `_`) removed.
+
+<Note>
+  The home page path cannot be changed after initial setup.
+</Note>
+
+## Page status
+
+The overall status displayed at the top of a page is derived from the real-time statuses of all monitors assigned to it. Kener aggregates those statuses and picks one of the following messages:
+
+| Message | Condition |
+|---------|-----------|
+| **All Systems Operational** | Every monitor is UP |
+| **Partial Degraded Performance** | Some monitors are DEGRADED |
+| **Degraded Performance** | ≥ 75% of monitors are DEGRADED |
+| **Partial System Outage** | Any monitor is DOWN |
+| **Major System Outage** | ≥ 75% of monitors are DOWN |
+| **Under Maintenance** | Any monitor is in MAINTENANCE |
+| **No Status Available** | No monitoring data |
+
+## Creating a page
+
+<Steps>
+  <Step title="Open Pages in the dashboard">
+    Go to **Manage → Pages** and click **New Page**.
+  </Step>
+  <Step title="Fill in the general information">
+    - **Path** — URL slug for the page (e.g. `infrastructure`). Leave blank for the home page.
+    - **Title** — shown in the browser tab.
+    - **Header** — main heading displayed on the page.
+    - **Page Content** — optional Markdown content displayed below the header (supports Markdown).
+    - **Page Logo** — optional per-page logo (PNG, JPG, SVG, or WebP; max 256 × 256 px).
+  </Step>
+  <Step title="Save the page">
+    Click **Create Page**. You are redirected to the page editor where you can add monitors.
+  </Step>
+</Steps>
+
+## Assigning monitors to a page
+
+After creating a page, use the **Page Monitors** section in the page editor to add monitors. Each monitor is identified by its tag.
+
+- Select a monitor from the dropdown and click **Add**.
+- Use the arrow buttons to reorder monitors — order is reflected on the public page.
+- Click the remove button to detach a monitor from the page.
+
+A single monitor can appear on multiple pages. Hidden monitors are excluded from the public view automatically.
+
+## Display settings
+
+Each page has independent display settings:
+
+| Setting | Description |
+|---------|-------------|
+| **Monitor Status History (desktop)** | Days of status history shown on desktop (default: 90) |
+| **Monitor Status History (mobile)** | Days of status history shown on mobile (default: 30) |
+| **Monitor Layout Style** | `default-list`, `default-grid`, `compact-list`, or `compact-grid` |
+
+## Social preview & SEO
+
+You can set a per-page social preview image, meta title, and meta description. These override the site-level defaults set in **Site Configurations**.
+
+## Managing existing pages
+
+Navigate to **Manage → Pages** to see a table of all pages, their paths, and monitor counts. Click **Edit** to open the page editor.
+
+<Tip>
+  To delete a page, type `delete <page-path>` in the confirmation field in the **Danger Zone** card. The home page cannot be deleted.
+</Tip>
+
+## Page switcher
+
+When you have multiple pages, Kener shows a page switcher dropdown in the navigation. You can control its visibility and ordering in **Site Configurations → Global Page Visibility Settings** and **Customizations → Page Ordering**.

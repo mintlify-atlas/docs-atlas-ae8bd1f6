@@ -1,0 +1,91 @@
+---
+title: "API Keys"
+description: "Create and manage API keys for authenticating programmatic access to the Kener REST API."
+---
+
+API keys allow external tools, scripts, and CI/CD pipelines to authenticate against the Kener REST API without using a user session. Each key is scoped to your Kener instance and carries the same permission checks as interactive dashboard requests.
+
+## Key format
+
+Every API key is generated as a `kener_` prefix followed by a 64-character hexadecimal string (32 random bytes from `crypto.randomBytes`):
+
+```
+kener_a3f9c2e1b4d87650f2a1c9e3b5d47820a1c3e5f7b9d2a4c6e8f0b2d4a6c8e0f2
+```
+
+<Warning>
+  The full key value is shown **only once**, immediately after creation. Kener stores only a hashed version of the key. If you lose it, you must delete the key and create a new one.
+</Warning>
+
+## Managing API keys in the dashboard
+
+Navigate to **Manage → API Keys**. You need the `api_keys.read` permission to view the list, `api_keys.write` to create or change the status of a key, and `api_keys.delete` to permanently remove one.
+
+### Creating a key
+
+<Steps>
+  <Step title="Open the API Keys page">
+    Navigate to **Manage → API Keys**.
+  </Step>
+  <Step title="Click Create New API Key">
+    Click the **Create New API Key** button in the top-right corner.
+  </Step>
+  <Step title="Enter a name">
+    Give the key a descriptive name (e.g. `GitHub Actions`, `Monitoring Script`). The name is required and helps you identify the key later.
+  </Step>
+  <Step title="Copy and store the key">
+    After clicking **Create**, the full key is displayed once in a banner at the top of the page. Copy it immediately and store it somewhere secure. Click **Dismiss** when done.
+  </Step>
+</Steps>
+
+### Activating and deactivating keys
+
+Each key has an `ACTIVE` or `INACTIVE` status. Use the toggle in the **Status** column of the keys table to switch a key on or off without deleting it. An inactive key will be rejected by the API even if it is syntactically valid.
+
+### Deleting a key
+
+Click **Delete** on the key row. A confirmation dialog will appear. This action is permanent and cannot be undone. The **Delete** button requires the `api_keys.delete` permission; users without this permission see a disabled button.
+
+### The masked key in the table
+
+The table shows a truncated representation of each key (the last 32 characters of the masked value) so you can identify which key is which without exposing the full secret.
+
+## Using API keys in requests
+
+Pass the key in the `Authorization` header of every API request:
+
+```http
+Authorization: Bearer kener_a3f9c2e1b4d87650f2a1c9e3b5d47820a1c3e5f7b9d2a4c6e8f0b2d4a6c8e0f2
+```
+
+Example with `curl`:
+
+```bash
+curl -X POST https://your-kener-instance.example.com/manage/api \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer kener_a3f9c2e1b4d87650f2a1c9e3b5d47820a1c3e5f7b9d2a4c6e8f0b2d4a6c8e0f2" \
+  -d '{"action": "getMonitors", "data": {}}'
+```
+
+The server verifies the key by hashing the provided value and comparing it against stored hashes. A request using an inactive or unknown key receives a `401 Unauthorized` response.
+
+## Security best practices
+
+<CardGroup cols={2}>
+  <Card title="One key per integration" icon="key">
+    Create a separate key for each service or script that needs API access. This makes it easy to revoke access for a single integration without affecting others.
+  </Card>
+  <Card title="Use descriptive names" icon="tag">
+    Name keys after the system that uses them (e.g. `Uptime Robot Webhook`, `Deploy Pipeline`). You cannot retrieve the key value later, but the name helps you identify what to replace.
+  </Card>
+  <Card title="Store keys in secrets managers" icon="lock">
+    Never commit API keys to source control. Use environment variables or a secrets manager (e.g. GitHub Actions secrets, Vault) to inject keys at runtime.
+  </Card>
+  <Card title="Deactivate instead of deleting" icon="toggle-off">
+    If you suspect a key has been leaked but are not sure, deactivate it first. This immediately blocks all requests while you investigate, without losing the key record.
+  </Card>
+</CardGroup>
+
+<Tip>
+  Rotate keys periodically. Create a replacement key, update all integrations to use the new key, then delete the old one.
+</Tip>

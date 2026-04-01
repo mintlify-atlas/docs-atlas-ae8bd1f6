@@ -1,0 +1,613 @@
+---
+title: "Incidents API"
+description: "Create and manage incidents, and add timeline comments to track resolution progress."
+---
+
+## Incident object
+
+<ResponseField name="id" type="integer">
+  Unique numeric identifier.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Incident title.
+</ResponseField>
+
+<ResponseField name="start_date_time" type="integer">
+  UTC Unix timestamp (seconds) when the incident started. Truncated to the start of the minute.
+</ResponseField>
+
+<ResponseField name="end_date_time" type="integer | null">
+  UTC Unix timestamp (seconds) when the incident ended. `null` if the incident is still open.
+</ResponseField>
+
+<ResponseField name="state" type="string">
+  Current incident state. One of `INVESTIGATING`, `IDENTIFIED`, `MONITORING`, `RESOLVED`.
+</ResponseField>
+
+<ResponseField name="incident_source" type="string">
+  How the incident was created. `API` for incidents created via this API, `MANUAL` for dashboard-created incidents.
+</ResponseField>
+
+<ResponseField name="incident_type" type="string">
+  Type of incident record. Typically `INCIDENT`.
+</ResponseField>
+
+<ResponseField name="monitors" type="array">
+  Monitors affected by this incident.
+  <Expandable title="monitor object">
+    <ResponseField name="monitor_tag" type="string">
+      Tag of the affected monitor.
+    </ResponseField>
+    <ResponseField name="impact" type="string">
+      Impact level. One of `DOWN`, `DEGRADED`, `UP`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 timestamp of creation.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  ISO 8601 timestamp of last update.
+</ResponseField>
+
+---
+
+## List incidents
+
+<ParamField query="start_ts" type="integer">
+  Filter to incidents that started at or after this UTC Unix timestamp (seconds).
+</ParamField>
+
+<ParamField query="end_ts" type="integer">
+  Filter to incidents that started at or before this UTC Unix timestamp (seconds).
+</ParamField>
+
+<ParamField query="monitor_tags" type="string">
+  Comma-separated list of monitor tags to filter by (e.g., `api-gateway,checkout-service`). Returns incidents linked to any of the specified monitors.
+</ParamField>
+
+```
+GET /api/v4/incidents
+```
+
+**Response** `200`
+
+```json
+{
+  "incidents": [
+    {
+      "id": 1,
+      "title": "API Gateway Outage",
+      "start_date_time": 1737000000,
+      "end_date_time": 1737003600,
+      "state": "RESOLVED",
+      "incident_source": "API",
+      "monitors": [
+        { "monitor_tag": "api-gateway", "impact": "DOWN" }
+      ],
+      "created_at": "2026-01-15T10:00:00.000Z",
+      "updated_at": "2026-01-15T11:00:00.000Z"
+    }
+  ]
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/incidents \
+  -H "Authorization: Bearer kener_..."
+```
+
+```bash curl (filtered)
+curl -X GET "https://your-kener-instance.com/api/v4/incidents?monitor_tags=api-gateway&start_ts=1737000000" \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Get an incident
+
+```
+GET /api/v4/incidents/{incident_id}
+```
+
+**Path parameters**
+
+<ParamField path="incident_id" type="integer" required>
+  Numeric ID of the incident.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "incident": {
+    "id": 1,
+    "title": "API Gateway Outage",
+    "start_date_time": 1737000000,
+    "end_date_time": null,
+    "state": "INVESTIGATING",
+    "incident_type": "INCIDENT",
+    "incident_source": "API",
+    "monitors": [
+      { "monitor_tag": "api-gateway", "impact": "DOWN" }
+    ],
+    "created_at": "2026-01-15T10:00:00.000Z",
+    "updated_at": "2026-01-15T10:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/incidents/1 \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Create an incident
+
+New incidents are created with state `INVESTIGATING`. Add comments to move the incident through its lifecycle.
+
+```
+POST /api/v4/incidents
+```
+
+<ParamField body="title" type="string" required>
+  Incident title.
+</ParamField>
+
+<ParamField body="start_date_time" type="integer" required>
+  UTC Unix timestamp in seconds when the incident started.
+</ParamField>
+
+<ParamField body="end_date_time" type="integer | null">
+  UTC Unix timestamp in seconds when the incident ended. Omit for open incidents.
+</ParamField>
+
+<ParamField body="monitors" type="array">
+  Monitors to associate with the incident.
+  <Expandable title="monitor object">
+    <ParamField body="monitor_tag" type="string" required>
+      Tag of the monitor to link.
+    </ParamField>
+    <ParamField body="impact" type="string">
+      Impact on this monitor. One of `DOWN`, `DEGRADED`, `UP`. Defaults to `DOWN`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Response** `201`
+
+```json
+{
+  "incident": {
+    "id": 2,
+    "title": "Database Slowdown",
+    "start_date_time": 1737010000,
+    "end_date_time": null,
+    "state": "INVESTIGATING",
+    "incident_type": "INCIDENT",
+    "incident_source": "API",
+    "monitors": [
+      { "monitor_tag": "database", "impact": "DEGRADED" }
+    ],
+    "created_at": "2026-01-15T12:00:00.000Z",
+    "updated_at": "2026-01-15T12:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://your-kener-instance.com/api/v4/incidents \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Database Slowdown",
+    "start_date_time": 1737010000,
+    "monitors": [
+      { "monitor_tag": "database", "impact": "DEGRADED" }
+    ]
+  }'
+```
+
+</CodeGroup>
+
+---
+
+## Update an incident
+
+Performs a partial update. Only the fields you provide are changed. Updating `monitors` replaces the full monitor list — pass an empty array to remove all.
+
+```
+PATCH /api/v4/incidents/{incident_id}
+```
+
+**Path parameters**
+
+<ParamField path="incident_id" type="integer" required>
+  Numeric ID of the incident.
+</ParamField>
+
+<ParamField body="title" type="string">
+  New incident title.
+</ParamField>
+
+<ParamField body="start_date_time" type="integer">
+  New start timestamp (UTC seconds).
+</ParamField>
+
+<ParamField body="end_date_time" type="integer | null">
+  New end timestamp (UTC seconds). Pass `null` to reopen the incident.
+</ParamField>
+
+<ParamField body="monitors" type="array">
+  Replacement monitor list. Replaces all existing monitor associations.
+  <Expandable title="monitor object">
+    <ParamField body="monitor_tag" type="string" required>
+      Tag of the monitor.
+    </ParamField>
+    <ParamField body="impact" type="string">
+      Impact level. One of `DOWN`, `DEGRADED`, `UP`. Defaults to `DOWN`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "incident": {
+    "id": 2,
+    "title": "Database Slowdown (resolved)",
+    "start_date_time": 1737010000,
+    "end_date_time": 1737013600,
+    "state": "INVESTIGATING",
+    "incident_type": "INCIDENT",
+    "incident_source": "API",
+    "monitors": [
+      { "monitor_tag": "database", "impact": "DEGRADED" }
+    ],
+    "created_at": "2026-01-15T12:00:00.000Z",
+    "updated_at": "2026-01-15T13:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X PATCH https://your-kener-instance.com/api/v4/incidents/2 \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "end_date_time": 1737013600,
+    "title": "Database Slowdown (resolved)"
+  }'
+```
+
+</CodeGroup>
+
+<Note>
+  Updating `monitors` to an empty array removes all monitor associations from the incident.
+</Note>
+
+---
+
+## Delete an incident
+
+Permanently deletes an incident and all its comments. Associated monitor alerts have their `incident_id` cleared.
+
+```
+DELETE /api/v4/incidents/{incident_id}
+```
+
+**Path parameters**
+
+<ParamField path="incident_id" type="integer" required>
+  Numeric ID of the incident to delete.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "message": "Incident with id '2' deleted successfully"
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X DELETE https://your-kener-instance.com/api/v4/incidents/2 \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Comment object
+
+Comments represent timeline updates posted to an incident. Adding a comment with state `RESOLVED` also sets `end_date_time` on the incident.
+
+<ResponseField name="id" type="integer">
+  Unique numeric identifier.
+</ResponseField>
+
+<ResponseField name="incident_id" type="integer">
+  ID of the incident this comment belongs to.
+</ResponseField>
+
+<ResponseField name="comment" type="string">
+  The comment text.
+</ResponseField>
+
+<ResponseField name="timestamp" type="integer">
+  UTC Unix timestamp (seconds) when the update occurred. Truncated to minute start.
+</ResponseField>
+
+<ResponseField name="state" type="string">
+  Incident state at the time of this comment. One of `INVESTIGATING`, `IDENTIFIED`, `MONITORING`, `RESOLVED`.
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 creation timestamp.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  ISO 8601 last-updated timestamp.
+</ResponseField>
+
+---
+
+## List comments
+
+```
+GET /api/v4/incidents/{incident_id}/comments
+```
+
+**Path parameters**
+
+<ParamField path="incident_id" type="integer" required>
+  Numeric ID of the incident.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "comments": [
+    {
+      "id": 1,
+      "incident_id": 1,
+      "comment": "We are investigating increased error rates.",
+      "timestamp": 1737000000,
+      "state": "INVESTIGATING",
+      "created_at": "2026-01-15T10:00:00.000Z",
+      "updated_at": "2026-01-15T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/incidents/1/comments \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Get a comment
+
+```
+GET /api/v4/incidents/{incident_id}/comments/{comment_id}
+```
+
+**Path parameters**
+
+<ParamField path="incident_id" type="integer" required>
+  Numeric ID of the incident.
+</ParamField>
+
+<ParamField path="comment_id" type="integer" required>
+  Numeric ID of the comment.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "comment": {
+    "id": 1,
+    "incident_id": 1,
+    "comment": "We are investigating increased error rates.",
+    "timestamp": 1737000000,
+    "state": "INVESTIGATING",
+    "created_at": "2026-01-15T10:00:00.000Z",
+    "updated_at": "2026-01-15T10:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/incidents/1/comments/1 \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Add a comment
+
+Adding a comment with `state: "RESOLVED"` automatically sets `end_date_time` on the parent incident to the comment's timestamp.
+
+```
+POST /api/v4/incidents/{incident_id}/comments
+```
+
+**Path parameters**
+
+<ParamField path="incident_id" type="integer" required>
+  Numeric ID of the incident.
+</ParamField>
+
+<ParamField body="comment" type="string" required>
+  Comment text.
+</ParamField>
+
+<ParamField body="state" type="string" required>
+  New incident state after this update. One of `INVESTIGATING`, `IDENTIFIED`, `MONITORING`, `RESOLVED`.
+</ParamField>
+
+<ParamField body="timestamp" type="integer">
+  UTC Unix timestamp in seconds. Defaults to the current time if omitted.
+</ParamField>
+
+**Response** `201`
+
+```json
+{
+  "comment": {
+    "id": 2,
+    "incident_id": 1,
+    "comment": "Root cause identified — rolling back deployment.",
+    "timestamp": 1737001800,
+    "state": "IDENTIFIED",
+    "created_at": "2026-01-15T10:30:00.000Z",
+    "updated_at": "2026-01-15T10:30:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://your-kener-instance.com/api/v4/incidents/1/comments \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "comment": "Root cause identified — rolling back deployment.",
+    "state": "IDENTIFIED",
+    "timestamp": 1737001800
+  }'
+```
+
+</CodeGroup>
+
+---
+
+## Update a comment
+
+Performs a partial update on a comment. Does not change the incident's current state.
+
+```
+PATCH /api/v4/incidents/{incident_id}/comments/{comment_id}
+```
+
+**Path parameters**
+
+<ParamField path="incident_id" type="integer" required>
+  Numeric ID of the incident.
+</ParamField>
+
+<ParamField path="comment_id" type="integer" required>
+  Numeric ID of the comment to update.
+</ParamField>
+
+<ParamField body="comment" type="string">
+  New comment text.
+</ParamField>
+
+<ParamField body="state" type="string">
+  New state for this comment. One of `INVESTIGATING`, `IDENTIFIED`, `MONITORING`, `RESOLVED`.
+</ParamField>
+
+<ParamField body="timestamp" type="integer">
+  New timestamp (UTC seconds).
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "comment": {
+    "id": 2,
+    "incident_id": 1,
+    "comment": "Root cause identified — rollback in progress.",
+    "timestamp": 1737001800,
+    "state": "IDENTIFIED",
+    "created_at": "2026-01-15T10:30:00.000Z",
+    "updated_at": "2026-01-15T10:35:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X PATCH https://your-kener-instance.com/api/v4/incidents/1/comments/2 \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "comment": "Root cause identified — rollback in progress."
+  }'
+```
+
+</CodeGroup>
+
+---
+
+## Delete a comment
+
+Soft-deletes a comment (marks it as `DELETED`). Deleted comments no longer appear in list or get responses.
+
+```
+DELETE /api/v4/incidents/{incident_id}/comments/{comment_id}
+```
+
+**Path parameters**
+
+<ParamField path="incident_id" type="integer" required>
+  Numeric ID of the incident.
+</ParamField>
+
+<ParamField path="comment_id" type="integer" required>
+  Numeric ID of the comment to delete.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "message": "Comment with id '2' deleted successfully"
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X DELETE https://your-kener-instance.com/api/v4/incidents/1/comments/2 \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>

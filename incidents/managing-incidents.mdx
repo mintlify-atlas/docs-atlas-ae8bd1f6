@@ -1,0 +1,138 @@
+---
+title: 'Managing incidents'
+description: 'Create, update, link monitors to, and resolve incidents from the Kener dashboard.'
+---
+
+## The incident lifecycle
+
+<Steps>
+  <Step title="Create the incident">
+    Navigate to **Manage → Incidents** and click **New Incident**. Provide a title and start date/time. The incident is created with state `INVESTIGATING` and status `OPEN`.
+  </Step>
+  <Step title="Add an initial update">
+    Optionally write an initial update message when creating the incident. This becomes the first entry in the timeline. Update text supports Markdown formatting.
+  </Step>
+  <Step title="Link affected monitors">
+    Attach one or more monitors to the incident and set the impact level for each (`DOWN` or `DEGRADED`). This overrides the monitor's displayed status on the public page for the duration of the incident.
+  </Step>
+  <Step title="Post timeline updates">
+    As your investigation progresses, add updates to the incident timeline. Each update carries a state (`INVESTIGATING`, `IDENTIFIED`, `MONITORING`, or `RESOLVED`) and a timestamp. The incident's top-level state advances to match the latest update.
+  </Step>
+  <Step title="Resolve the incident">
+    Post a final update with state `RESOLVED`. Kener automatically sets the incident's `end_date_time` to the timestamp of the resolving update. The incident is then closed.
+  </Step>
+</Steps>
+
+## Creating an incident
+
+Go to **Manage → Incidents → New Incident**.
+
+### Required fields
+
+| Field | Description |
+|---|---|
+| **Title** | A short, clear description of the incident. Required. |
+| **Start date/time** | When the incident began. Entered in your local timezone and stored as UTC. Required. |
+
+### Optional fields
+
+| Field | Description |
+|---|---|
+| **Initial update** | The first timeline entry. Supports Markdown. |
+| **Affected monitors** | Monitors impacted by this incident, with their impact level. |
+| **Global incident** | Toggle whether the incident is visible on all status pages (`YES`) or scoped (`NO`). Defaults to `YES`. |
+
+<Warning>
+The title and start date/time are the only required fields. An incident cannot be saved without them.
+</Warning>
+
+## Adding timeline updates
+
+Timeline entries (called *updates* in the UI, stored as `incident_comments`) are how you communicate progress to users.
+
+To add an update to an existing incident:
+
+1. Open the incident from **Manage → Incidents**
+2. Click **Add Update** in the Updates section
+3. Write your message in the Markdown editor
+4. Select the current **state** (`INVESTIGATING`, `IDENTIFIED`, `MONITORING`, or `RESOLVED`)
+5. Set the **date/time** for this update (defaults to now)
+6. Click **Add Update**
+
+Each update is stored with:
+- `comment` — the Markdown message body
+- `state` — the incident state at the time of this update
+- `commented_at` — the Unix timestamp of the update
+- `status` — whether the update is `ACTIVE` (visible) or archived
+
+<Note>
+Editing an existing update or posting a new one with state `RESOLVED` will automatically set the incident's `end_date_time` to that update's timestamp. Changing a resolved incident back to any other state clears the `end_date_time`.
+</Note>
+
+## Linking monitors to an incident
+
+You can attach monitors to an incident to indicate which services are affected and how.
+
+**To add a monitor:**
+
+1. In the incident detail page, click **Add Monitor**
+2. Select a monitor from the list of available monitors
+3. Choose the impact level: `DOWN` or `DEGRADED`
+4. Click **Add Monitor**
+
+**To update impact level:** Use the action menu on the monitor row and select a different impact level.
+
+**To remove a monitor:** Use the action menu and choose **Remove**.
+
+<Note>
+The monitor impact level (`DOWN`, `DEGRADED`, or `MAINTENANCE`) overrides what is displayed for that monitor on the public status page for the duration of the open incident.
+</Note>
+
+## Incident states reference
+
+| State | When to use |
+|---|---|
+| `INVESTIGATING` | Initial state. The problem has been detected but root cause is unknown. |
+| `IDENTIFIED` | You know what caused the incident and are working on a fix. |
+| `MONITORING` | A fix is deployed. You are watching systems to confirm stability. |
+| `RESOLVED` | The incident is over. Systems are back to normal. |
+
+## Editing an incident
+
+To edit an existing incident's core details:
+
+1. Open the incident from **Manage → Incidents**
+2. Modify the title, start date/time, or global visibility toggle
+3. Click **Save Changes**
+
+<Note>
+For existing incidents, the state is controlled by timeline updates, not the incident form directly. To change the state, post a new update with the target state.
+</Note>
+
+## Deleting an incident
+
+From the incident detail page, click **Delete**. You must type the confirmation phrase `delete incident {id}` before the deletion is accepted.
+
+Deleting an incident permanently removes:
+- The incident record
+- All timeline updates (comments)
+- All monitor associations
+- Any alert links to the incident (the alert records themselves are preserved but their `incident_id` reference is cleared)
+
+<Warning>
+Deletion is permanent and cannot be undone.
+</Warning>
+
+## Filtering and pagination
+
+The incidents list at **Manage → Incidents** shows open incidents by default. Use the state filter dropdown to narrow the list:
+
+| Filter option | Shows |
+|---|---|
+| All States | All incidents regardless of state |
+| Investigating | Incidents in `INVESTIGATING` state |
+| Identified | Incidents in `IDENTIFIED` state |
+| Monitoring | Incidents in `MONITORING` state |
+| Resolved | Incidents in `RESOLVED` state |
+
+The list is paginated with 10 incidents per page. The duration column shows either elapsed time (for ongoing incidents) or total duration (for resolved incidents).

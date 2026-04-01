@@ -1,0 +1,69 @@
+---
+title: "Authentication"
+description: "How to authenticate requests to the Kener API using API keys."
+---
+
+## Overview
+
+Every request to the Kener API (except the public status endpoint) must include a valid API key in the `Authorization` header.
+
+## API key format
+
+API keys are prefixed with `kener_` followed by 64 random hexadecimal characters:
+
+```
+kener_a1b2c3d4e5f6...
+```
+
+## Sending the API key
+
+Pass your API key as a Bearer token in the `Authorization` header:
+
+```bash
+Authorization: Bearer <your_api_key>
+```
+
+**Example request:**
+
+```bash
+curl -X GET https://your-kener-instance.com/api/v4/monitors \
+  -H "Authorization: Bearer kener_a1b2c3d4e5f6..."
+```
+
+## Creating an API key
+
+Create API keys from the **Administration → API Keys** section of the Kener dashboard. See [API Keys](/admin/api-keys) for step-by-step instructions.
+
+<Note>
+  Copy your API key immediately after creation — it is shown only once and cannot be retrieved later.
+</Note>
+
+## Authentication errors
+
+If your API key is missing or invalid, the API returns a `401 Unauthorized` response:
+
+```json
+{
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Missing or invalid authorization header"
+  }
+}
+```
+
+If the key exists but has been deactivated, you receive:
+
+```json
+{
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Invalid API key"
+  }
+}
+```
+
+## Security recommendations
+
+- Store your API key in an environment variable, not in source code.
+- Rotate keys periodically from the dashboard.
+- Revoke keys immediately if they are compromised.

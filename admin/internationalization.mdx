@@ -1,0 +1,136 @@
+---
+title: "Internationalization"
+description: "Configure languages, timezone switching, and date/time formats for your public status pages."
+---
+
+Kener's internationalization (i18n) settings control which languages are available on your public status pages, which language is shown by default, whether visitors can manually switch timezones, and how dates and times are formatted.
+
+Navigate to **Manage → Internationalization** to configure these settings. The page requires the `settings.read` permission to view and `settings.write` to save changes.
+
+## Supported locales
+
+Kener ships with translations for 21 locales. Each locale is a JSON file under `src/lib/locales/` that provides the locale's human-readable name and a `mappings` object of translated strings.
+
+| Code | Language |
+|------|----------|
+| `cs` | Čeština |
+| `de` | Deutsch |
+| `dk` | Dansk |
+| `en` | English |
+| `es` | Español |
+| `fa` | Persian |
+| `fr` | Français |
+| `hi` | हिन्दी |
+| `it` | Italiano |
+| `ja` | Japanese |
+| `ko` | Korean |
+| `nb-NO` | Norsk Bokmål |
+| `nl` | Nederlands |
+| `pl` | Polski |
+| `pt-BR` | Português (Brasil) |
+| `ru` | Русский |
+| `sk` | Slovenčina |
+| `tr` | Türkçe |
+| `vi` | Tiếng Việt |
+| `zh-CN` | 简体中文 |
+| `zh-TW` | 繁體中文（台灣） |
+
+## Configuring available languages
+
+<Steps>
+  <Step title="Open the Internationalization page">
+    Navigate to **Manage → Internationalization**.
+  </Step>
+  <Step title="Select available languages">
+    In the **Languages** card, check each language you want to make available to status page visitors. Users will be able to switch between all checked languages using the language selector on the public page.
+  </Step>
+  <Step title="Set the default language">
+    In the **Default Language** dropdown, select which language is shown when a visitor first arrives. Only languages you have checked in the previous step appear in this dropdown.
+
+    The default language is always checked and cannot be unchecked — to change the default, first select a different default language, then uncheck the old one.
+  </Step>
+  <Step title="Save">
+    Click **Save Languages**.
+  </Step>
+</Steps>
+
+<Note>
+  Language preferences are persisted per-visitor in `localStorage` under the key `kener_preferred_locale`. If a visitor has previously selected a language and it is still in your enabled list, their preference takes priority over the configured default.
+</Note>
+
+## Timezone settings
+
+Kener automatically detects each visitor's local timezone and displays all times accordingly. You can additionally allow visitors to **manually switch between timezones** using the toggle in the **Timezone Settings** card.
+
+<Steps>
+  <Step title="Enable timezone switching">
+    Toggle **Allow users to switch timezones** to on.
+  </Step>
+  <Step title="Save">
+    Click **Save Timezone**.
+  </Step>
+</Steps>
+
+When the toggle is off, times are always shown in the visitor's detected local timezone with no UI to change it.
+
+## Date & time format
+
+The **Date & Time Format** card lets you control how dates and times appear across the status page. Formats use [date-fns format tokens](https://date-fns.org/docs/format).
+
+There are three separate format strings:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Date + Time | `PPpp` | Used when both a date and time are shown together |
+| Date Only | `PP` | Used when only a date is needed |
+| Time Only | `pp` | Used when only a time is needed |
+
+### Preset suggestions
+
+The dashboard provides preset badges for each field. Click a badge to apply it and see a live preview of how the current date and time would render with that format.
+
+**Date + Time presets**
+
+| Format | Label |
+|--------|-------|
+| `PPp` | Locale (AM/PM) |
+| `PP HH:mm` | Locale date + 24h |
+| `yyyy-MM-dd HH:mm` | ISO-like 24h |
+| `dd MMM yyyy h:mm a` | Day month year AM/PM |
+| `MMM dd, yyyy HH:mm` | Month day year 24h |
+
+**Date Only presets**
+
+| Format | Label |
+|--------|-------|
+| `PP` | Locale |
+| `yyyy-MM-dd` | ISO |
+| `dd/MM/yyyy` | Day-first |
+| `MMM dd, yyyy` | Month day year |
+| `dd MMM yyyy` | Day month year |
+
+**Time Only presets**
+
+| Format | Label |
+|--------|-------|
+| `p` | Locale (AM/PM) |
+| `HH:mm` | 24h |
+| `H:mm` | 24h short |
+| `h:mm a` | 12h AM/PM |
+| `hh:mm` | 12h no period |
+
+You can also type any valid date-fns format string directly into the input. The preview line beneath each field updates in real time. If the format string is invalid, the preview shows `Invalid format`.
+
+Click **Save Format** to apply your changes.
+
+## Translation coverage
+
+Translation coverage varies by locale. Untranslated keys fall back first to English and then to the raw key string. The fallback logic in `src/lib/server/i18n.ts` follows this order:
+
+1. Look up the key in the requested locale's `mappings`.
+2. If not found and the locale is not `en`, look up the key in the English mappings.
+3. If still not found, return the key itself as the display string.
+
+<Tip>
+  To contribute a new locale or improve an existing translation, add or edit the corresponding JSON file in `src/lib/locales/`. Each file must have a top-level `name` field (the human-readable language name) and a `mappings` object mapping source strings to their translations.
+</Tip>

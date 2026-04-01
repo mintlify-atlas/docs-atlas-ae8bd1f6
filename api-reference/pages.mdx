@@ -1,0 +1,465 @@
+---
+title: "Pages API"
+description: "Create and manage status pages, their content settings, and their monitor lists."
+---
+
+## Page object
+
+<ResponseField name="id" type="integer">
+  Unique numeric identifier.
+</ResponseField>
+
+<ResponseField name="page_path" type="string">
+  URL path for the status page. Lowercase, URL-safe (letters, numbers, hyphens, underscores). Spaces are converted to hyphens; other special characters are removed.
+</ResponseField>
+
+<ResponseField name="page_title" type="string">
+  Title shown in the browser tab and page header.
+</ResponseField>
+
+<ResponseField name="page_header" type="string">
+  Primary heading displayed at the top of the status page.
+</ResponseField>
+
+<ResponseField name="page_subheader" type="string | null">
+  Optional secondary heading beneath the main header.
+</ResponseField>
+
+<ResponseField name="page_logo" type="string | null">
+  Optional logo URL displayed on the page.
+</ResponseField>
+
+<ResponseField name="page_settings" type="object">
+  Controls what the page displays for incidents and maintenances.
+  <Expandable title="properties">
+    <ResponseField name="incidents" type="object">
+      Incident display settings.
+      <Expandable title="properties">
+        <ResponseField name="enabled" type="boolean">
+          Show the incidents section. Default: `true`.
+        </ResponseField>
+        <ResponseField name="ongoing" type="object">
+          <Expandable title="properties">
+            <ResponseField name="show" type="boolean">
+              Show ongoing incidents. Default: `true`.
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        <ResponseField name="resolved" type="object">
+          <Expandable title="properties">
+            <ResponseField name="show" type="boolean">
+              Show resolved incidents. Default: `true`.
+            </ResponseField>
+            <ResponseField name="max_count" type="integer">
+              Maximum number of resolved incidents to show. Default: `5`.
+            </ResponseField>
+            <ResponseField name="days_in_past" type="integer">
+              How many days back to look for resolved incidents. Default: `7`.
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="include_maintenances" type="object">
+      Maintenance display settings.
+      <Expandable title="properties">
+        <ResponseField name="enabled" type="boolean">
+          Show the maintenances section. Default: `true`.
+        </ResponseField>
+        <ResponseField name="ongoing" type="object">
+          <Expandable title="properties">
+            <ResponseField name="show" type="boolean">
+              Show ongoing and upcoming maintenances. Default: `true`.
+            </ResponseField>
+            <ResponseField name="past" type="object">
+              <Expandable title="properties">
+                <ResponseField name="show" type="boolean">
+                  Show past maintenances. Default: `true`.
+                </ResponseField>
+                <ResponseField name="max_count" type="integer">
+                  Maximum number of past maintenances to show. Default: `5`.
+                </ResponseField>
+                <ResponseField name="days_in_past" type="integer">
+                  How many days back to look. Default: `7`.
+                </ResponseField>
+              </Expandable>
+            </ResponseField>
+            <ResponseField name="upcoming" type="object">
+              <Expandable title="properties">
+                <ResponseField name="show" type="boolean">
+                  Show upcoming maintenances. Default: `true`.
+                </ResponseField>
+                <ResponseField name="max_count" type="integer">
+                  Maximum number of upcoming maintenances to show. Default: `5`.
+                </ResponseField>
+                <ResponseField name="days_in_future" type="integer">
+                  How many days ahead to look. Default: `30`.
+                </ResponseField>
+              </Expandable>
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="monitors" type="array">
+  Ordered list of monitors displayed on the page.
+  <Expandable title="monitor object">
+    <ResponseField name="monitor_tag" type="string">
+      Tag of the monitor shown on this page.
+    </ResponseField>
+    <ResponseField name="position" type="integer">
+      Display order (0-indexed).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="created_at" type="string">
+  ISO 8601 creation timestamp.
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  ISO 8601 last-updated timestamp.
+</ResponseField>
+
+---
+
+## List pages
+
+```
+GET /api/v4/pages
+```
+
+**Response** `200`
+
+```json
+{
+  "pages": [
+    {
+      "id": 1,
+      "page_path": "status",
+      "page_title": "System Status",
+      "page_header": "All Systems Operational",
+      "page_subheader": null,
+      "page_logo": null,
+      "page_settings": {
+        "incidents": {
+          "enabled": true,
+          "ongoing": { "show": true },
+          "resolved": { "show": true, "max_count": 5, "days_in_past": 7 }
+        },
+        "include_maintenances": {
+          "enabled": true,
+          "ongoing": {
+            "show": true,
+            "past": { "show": true, "max_count": 5, "days_in_past": 7 },
+            "upcoming": { "show": true, "max_count": 5, "days_in_future": 30 }
+          }
+        }
+      },
+      "monitors": [
+        { "monitor_tag": "api-gateway", "position": 0 },
+        { "monitor_tag": "database", "position": 1 }
+      ],
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "updated_at": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/pages \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Get a page
+
+```
+GET /api/v4/pages/{page_path}
+```
+
+**Path parameters**
+
+<ParamField path="page_path" type="string" required>
+  The URL path of the page (e.g., `status`).
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "page": {
+    "id": 1,
+    "page_path": "status",
+    "page_title": "System Status",
+    "page_header": "All Systems Operational",
+    "page_subheader": null,
+    "page_logo": null,
+    "page_settings": {
+      "incidents": {
+        "enabled": true,
+        "ongoing": { "show": true },
+        "resolved": { "show": true, "max_count": 5, "days_in_past": 7 }
+      },
+      "include_maintenances": {
+        "enabled": true,
+        "ongoing": {
+          "show": true,
+          "past": { "show": true, "max_count": 5, "days_in_past": 7 },
+          "upcoming": { "show": true, "max_count": 5, "days_in_future": 30 }
+        }
+      }
+    },
+    "monitors": [
+      { "monitor_tag": "api-gateway", "position": 0 }
+    ],
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://your-kener-instance.com/api/v4/pages/status \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>
+
+---
+
+## Create a page
+
+```
+POST /api/v4/pages
+```
+
+<ParamField body="page_path" type="string" required>
+  URL path for the page. Sanitized automatically: converted to lowercase, spaces replaced with hyphens, invalid characters removed.
+</ParamField>
+
+<ParamField body="page_title" type="string" required>
+  Page title.
+</ParamField>
+
+<ParamField body="page_header" type="string" required>
+  Primary heading.
+</ParamField>
+
+<ParamField body="page_subheader" type="string | null">
+  Optional secondary heading.
+</ParamField>
+
+<ParamField body="page_logo" type="string | null">
+  Optional logo URL.
+</ParamField>
+
+<ParamField body="page_settings" type="object">
+  Partial settings object. Any missing fields use their defaults.
+</ParamField>
+
+<ParamField body="monitors" type="array">
+  Ordered array of monitor tags to display on this page. Each tag must belong to an existing monitor.
+</ParamField>
+
+**Response** `201`
+
+```json
+{
+  "page": {
+    "id": 2,
+    "page_path": "infrastructure",
+    "page_title": "Infrastructure Status",
+    "page_header": "Infrastructure",
+    "page_subheader": "Core platform services",
+    "page_logo": null,
+    "page_settings": {
+      "incidents": {
+        "enabled": true,
+        "ongoing": { "show": true },
+        "resolved": { "show": true, "max_count": 5, "days_in_past": 7 }
+      },
+      "include_maintenances": {
+        "enabled": false,
+        "ongoing": {
+          "show": false,
+          "past": { "show": false, "max_count": 5, "days_in_past": 7 },
+          "upcoming": { "show": false, "max_count": 5, "days_in_future": 30 }
+        }
+      }
+    },
+    "monitors": [
+      { "monitor_tag": "api-gateway", "position": 0 },
+      { "monitor_tag": "database", "position": 1 }
+    ],
+    "created_at": "2026-01-15T00:00:00.000Z",
+    "updated_at": "2026-01-15T00:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://your-kener-instance.com/api/v4/pages \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "page_path": "infrastructure",
+    "page_title": "Infrastructure Status",
+    "page_header": "Infrastructure",
+    "page_subheader": "Core platform services",
+    "monitors": ["api-gateway", "database"],
+    "page_settings": {
+      "include_maintenances": { "enabled": false }
+    }
+  }'
+```
+
+</CodeGroup>
+
+<Note>
+  Monitor order in the `monitors` array determines display order. The first element appears at `position: 0`.
+</Note>
+
+---
+
+## Update a page
+
+Performs a partial update. Only the fields you provide are changed. Updating `monitors` replaces the full monitor list.
+
+```
+PATCH /api/v4/pages/{page_path}
+```
+
+**Path parameters**
+
+<ParamField path="page_path" type="string" required>
+  The current URL path of the page.
+</ParamField>
+
+<ParamField body="page_path" type="string">
+  New URL path. Sanitized the same way as on creation. Must not conflict with an existing page.
+</ParamField>
+
+<ParamField body="page_title" type="string">
+  New page title.
+</ParamField>
+
+<ParamField body="page_header" type="string">
+  New primary heading.
+</ParamField>
+
+<ParamField body="page_subheader" type="string | null">
+  New secondary heading.
+</ParamField>
+
+<ParamField body="page_logo" type="string | null">
+  New logo URL.
+</ParamField>
+
+<ParamField body="page_settings" type="object">
+  Partial settings to merge into the existing settings.
+</ParamField>
+
+<ParamField body="monitors" type="array">
+  Replacement ordered monitor tag list. Replaces all current monitor associations.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "page": {
+    "id": 1,
+    "page_path": "status",
+    "page_title": "System Status — Updated",
+    "page_header": "All Systems Operational",
+    "page_subheader": "Last checked: just now",
+    "page_logo": null,
+    "page_settings": {
+      "incidents": {
+        "enabled": true,
+        "ongoing": { "show": true },
+        "resolved": { "show": true, "max_count": 10, "days_in_past": 14 }
+      },
+      "include_maintenances": {
+        "enabled": true,
+        "ongoing": {
+          "show": true,
+          "past": { "show": true, "max_count": 5, "days_in_past": 7 },
+          "upcoming": { "show": true, "max_count": 5, "days_in_future": 30 }
+        }
+      }
+    },
+    "monitors": [
+      { "monitor_tag": "api-gateway", "position": 0 }
+    ],
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-15T16:00:00.000Z"
+  }
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X PATCH https://your-kener-instance.com/api/v4/pages/status \
+  -H "Authorization: Bearer kener_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "page_title": "System Status — Updated",
+    "page_subheader": "Last checked: just now",
+    "page_settings": {
+      "incidents": {
+        "resolved": { "max_count": 10, "days_in_past": 14 }
+      }
+    }
+  }'
+```
+
+</CodeGroup>
+
+---
+
+## Delete a page
+
+Permanently deletes the page and removes all its monitor associations. The monitors themselves are not deleted.
+
+```
+DELETE /api/v4/pages/{page_path}
+```
+
+**Path parameters**
+
+<ParamField path="page_path" type="string" required>
+  The URL path of the page to delete.
+</ParamField>
+
+**Response** `200`
+
+```json
+{
+  "message": "Page 'status' deleted successfully"
+}
+```
+
+<CodeGroup>
+
+```bash curl
+curl -X DELETE https://your-kener-instance.com/api/v4/pages/infrastructure \
+  -H "Authorization: Bearer kener_..."
+```
+
+</CodeGroup>

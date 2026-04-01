@@ -1,0 +1,238 @@
+---
+title: "Badges & Widgets"
+description: "Embed live monitor status, uptime, and latency badges or widgets on any external site."
+---
+
+Kener provides two embedding mechanisms: **badges** (small SVG images you can drop into any Markdown or HTML) and **widgets** (iframes or script tags that render full status bars or charts).
+
+Both are generated from **Manage → Badges** and **Manage → Embed**.
+
+## Status badges
+
+Badges are SVG images served directly from your Kener instance. There are three badge types:
+
+| Type | URL path | Shows |
+|------|----------|-------|
+| **Status** | `/badge/<tag>/status` | Current real-time status (UP, DOWN, DEGRADED, etc.) |
+| **Uptime** | `/badge/<tag>/uptime` | Uptime percentage over a time period |
+| **Latency** | `/badge/<tag>/latency` | Response latency over a time period |
+
+Use `_` as the tag to aggregate all active monitors into a single badge.
+
+### Badge URL format
+
+```
+/badge/<tag>/<type>[?param=value&...]
+```
+
+**Status badge parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `label` | Custom label text (defaults to monitor name) |
+| `labelColor` | Label background color (hex without `#`, default `333`) |
+| `color` | Badge value color (hex without `#`) |
+| `style` | Badge visual style (see below) |
+| `locale` | Language for the status text (must be an activated locale) |
+
+**Uptime / latency badge parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `sinceLast` | Time window in seconds (default: `7776000` = 90 days) |
+| `hideDuration` | Set to `true` to omit the time period from the label |
+| `label` | Custom label text |
+| `labelColor` | Label color (hex without `#`) |
+| `color` | Badge value color (hex without `#`) |
+| `style` | Badge visual style |
+| `metric` | Latency metric: `average` (default), `maximum`, or `minimum` |
+
+### Badge styles
+
+<Tabs>
+  <Tab title="flat (default)">
+    ```
+    /badge/my-api/status?style=flat
+    ```
+    Flat design with no gradient. This is the default when `style` is omitted.
+  </Tab>
+  <Tab title="plastic">
+    ```
+    /badge/my-api/status?style=plastic
+    ```
+    Classic gradient style reminiscent of Shields.io plastic badges.
+  </Tab>
+  <Tab title="flat-square">
+    ```
+    /badge/my-api/status?style=flat-square
+    ```
+    Flat with sharp square corners.
+  </Tab>
+  <Tab title="for-the-badge">
+    ```
+    /badge/my-api/status?style=for-the-badge
+    ```
+    Large, all-uppercase label style.
+  </Tab>
+  <Tab title="social">
+    ```
+    /badge/my-api/status?style=social
+    ```
+    Rounded social-media style with outline.
+  </Tab>
+</Tabs>
+
+The default style when no `style` parameter is provided is `flat`.
+
+### Dot badge
+
+A minimal colored dot SVG that reflects current status:
+
+```
+/badge/<tag>/dot[?animate=ping&fillColor=<hex>]
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `animate` | Set to `ping` for a pulsing animation |
+| `fillColor` | Override color (hex with `#`) |
+
+## Using badges
+
+<CodeGroup>
+```html HTML
+<img src="https://status.example.com/badge/my-api/status" alt="my-api status" />
+```
+
+```markdown Markdown
+![my-api status](https://status.example.com/badge/my-api/status)
+```
+
+```markdown Uptime badge (30 days)
+![my-api uptime](https://status.example.com/badge/my-api/uptime?sinceLast=2592000)
+```
+
+```markdown For-the-badge style
+![my-api status](https://status.example.com/badge/my-api/status?style=for-the-badge)
+```
+</CodeGroup>
+
+The **Badge Generator** at **Manage → Badges** builds the URL and snippets for you. Select a monitor, badge type, style, and colors, then copy the generated HTML or Markdown.
+
+<Tip>
+  The badge generator also shows a live preview of the badge so you can verify colors and style before copying the code.
+</Tip>
+
+## Embed widgets
+
+Widgets render a full interactive component inside an `<iframe>` or via a `<script>` tag.
+
+There are three embed types:
+
+| Type | Embed path | Renders |
+|------|-----------|---------|
+| **Status Bar** | `/embed/monitor-<tag>` | Status bar with uptime percentage and day-by-day history |
+| **Latency Chart** | `/embed/latency-<tag>` | Line chart of response latency over time |
+| **Live Events** | `/embed/events/live` | Ongoing incidents and maintenance events in real time |
+
+### Status bar widget
+
+```
+/embed/monitor-<tag>?theme=light&days=90
+```
+
+| Parameter | Values | Description |
+|-----------|--------|-------------|
+| `theme` | `light`, `dark` | Color theme |
+| `days` | `7`, `30`, `60`, `90` | History window |
+
+Embed as an iframe (height ~70 px):
+
+```html
+<iframe
+  src="https://status.example.com/embed/monitor-my-api?theme=light&days=90"
+  width="100%"
+  height="70"
+  frameborder="0"
+  allowfullscreen="allowfullscreen">
+</iframe>
+```
+
+Or as a script tag:
+
+```html
+<script src="https://status.example.com/embed/monitor-my-api/js?theme=light&days=90"></script>
+```
+
+### Latency chart widget
+
+```
+/embed/latency-<tag>?theme=light&days=90&height=200&metric=average
+```
+
+| Parameter | Values | Description |
+|-----------|--------|-------------|
+| `theme` | `light`, `dark` | Color theme |
+| `days` | `7`, `30`, `60`, `90` | History window |
+| `height` | `100`–`300` | Chart height in px |
+| `metric` | `average`, `maximum`, `minimum` | Latency metric to display |
+
+```html
+<iframe
+  src="https://status.example.com/embed/latency-my-api?theme=light&days=90&height=200"
+  width="100%"
+  height="250"
+  frameborder="0"
+  allowfullscreen="allowfullscreen">
+</iframe>
+```
+
+### Live events widget
+
+```
+/embed/events/live?theme=light&incidents=1&maintenance=1&tags=my-api,other-api
+```
+
+| Parameter | Values | Description |
+|-----------|--------|-------------|
+| `theme` | `light`, `dark` | Color theme |
+| `incidents` | `0`, `1` | Show incidents |
+| `maintenance` | `0`, `1` | Show maintenance events |
+| `tags` | Comma-separated monitor tags | Filter by monitors; omit to show all global events |
+
+```html
+<iframe
+  src="https://status.example.com/embed/events/live?theme=light&incidents=1&maintenance=1"
+  width="100%"
+  height="300"
+  frameborder="0"
+  allowfullscreen="allowfullscreen">
+</iframe>
+```
+
+## Getting embed code from the dashboard
+
+<Steps>
+  <Step title="Open the Embed Generator">
+    Go to **Manage → Embed**.
+  </Step>
+  <Step title="Configure the embed">
+    Select the embed type, monitor, theme, time period, and format (iFrame or Script).
+  </Step>
+  <Step title="Copy the code">
+    Click the copy icon next to **Embed Code** and paste it into your external site.
+  </Step>
+</Steps>
+
+<Note>
+  Using a `<script>` tag embed may require updating your site's Content Security Policy (CSP) to allow scripts from your Kener origin.
+</Note>
+
+## Enabling badge and embed links on the status page
+
+Visitors can access badge and embed links directly from each monitor's sub-menu on the public status page. These options are controlled in **Manage → Site Configurations → Monitor Sub Menu Options**:
+
+- **Share Badge** — shows the badge share menu for each monitor.
+- **Share Embed** — shows the embed share menu for each monitor.
+
+Both are enabled by default.
